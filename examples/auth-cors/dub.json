@@ -1,0 +1,10 @@
+{
+    "name": "auth-cors",
+    "description": "dex example: Basic Auth and CORS middleware",
+    "targetType": "executable",
+    "dependencies": {
+        "dex": {
+            "path": "../.."
+        }
+    }
+}

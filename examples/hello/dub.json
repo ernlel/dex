@@ -1,0 +1,10 @@
+{
+    "name": "hello",
+    "description": "Minimal dex example",
+    "targetType": "executable",
+    "dependencies": {
+        "dex": {
+            "path": "../.."
+        }
+    }
+}

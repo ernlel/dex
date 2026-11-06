@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+    <defs>
+        <pattern id="grid" width="54" height="54" patternUnits="userSpaceOnUse">
+            <path d="M54 0H0V54" fill="none" stroke="#273449" stroke-opacity=".45" stroke-width="1"/>
+        </pattern>
+    </defs>
+
+    <rect width="1200" height="630" fill="#020617"/>
+    <rect width="1200" height="630" fill="url(#grid)"/>
+
+    <rect x="90" y="86" width="74" height="74" rx="17" fill="#f59e0b"/>
+    <text x="127" y="141" text-anchor="middle"
+          font-family="Liberation Mono, monospace"
+          font-size="54" font-weight="700" fill="#1a1204">d</text>
+
+    <text x="192" y="136" font-family="Liberation Sans, sans-serif"
+          font-size="58" font-weight="700" fill="#f8fafc">dex</text>
+    <text x="194" y="176" font-family="Liberation Sans, sans-serif"
+          font-size="24" fill="#a3b0c2">Express-inspired web framework for D</text>
+
+    <text x="90" y="330" font-family="Liberation Sans, sans-serif"
+          font-size="62" font-weight="700" fill="#f8fafc">Web APIs that feel</text>
+    <text x="90" y="398" font-family="Liberation Sans, sans-serif"
+          font-size="62" font-weight="700" fill="#fbbf24">like Express.</text>
+    <text x="90" y="466" font-family="Liberation Sans, sans-serif"
+          font-size="62" font-weight="700" fill="#f8fafc">Built for D.</text>
+
+    <text x="92" y="535" font-family="Liberation Mono, monospace"
+          font-size="22" fill="#a3b0c2">0 dependencies · HTTP/1.1 · MIT</text>
+
+    <rect x="690" y="245" width="420" height="286" rx="18" fill="#050a15" stroke="#273449" stroke-width="2"/>
+    <line x1="690" y1="295" x2="1110" y2="295" stroke="#1a2538" stroke-width="2"/>
+    <circle cx="719" cy="270" r="5" fill="#f59e0b"/>
+    <circle cx="737" cy="270" r="5" fill="#273449"/>
+    <circle cx="755" cy="270" r="5" fill="#273449"/>
+    <text x="780" y="276" font-family="Liberation Mono, monospace"
+          font-size="16" fill="#7d8aa0">main.d</text>
+
+    <text x="718" y="350" font-family="Liberation Mono, monospace"
+          font-size="19" fill="#7dd3fc">app.get(<tspan fill="#86efac">"/users/:id"</tspan>,</text>
+    <text x="718" y="382" font-family="Liberation Mono, monospace"
+          font-size="19" fill="#cbd5e1">    (req, res) {</text>
+    <text x="718" y="414" font-family="Liberation Mono, monospace"
+          font-size="19" fill="#cbd5e1">        res.json([<tspan fill="#86efac">"id"</tspan>: ...]);</text>
+    <text x="718" y="446" font-family="Liberation Mono, monospace"
+          font-size="19" fill="#cbd5e1">    });</text>
+    <text x="718" y="478" font-family="Liberation Mono, monospace"
+          font-size="19" fill="#fbbf24">app.listen(<tspan fill="#fda4af">3000</tspan>);</text>
+
+    <rect x="690" y="551" width="420" height="1" fill="#1a2538"/>
+    <text x="92" y="590" font-family="Liberation Mono, monospace"
+          font-size="16" fill="#64748b">github.com · docs in the repository</text>
+</svg>

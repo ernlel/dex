@@ -1,0 +1,16 @@
+{
+    "name": "dex",
+    "description": "Express-inspired, ergonomic web framework for D",
+    "authors": ["Ernest"],
+    "license": "MIT",
+    "targetType": "library",
+    "sourcePaths": ["source"],
+    "importPaths": ["source"],
+    "dependencies": {},
+    "configurations": [
+        {
+            "name": "library",
+            "targetType": "library"
+        }
+    ]
+}

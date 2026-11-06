@@ -1,0 +1,10 @@
+{
+    "name": "todos",
+    "description": "In-memory JSON CRUD API built with dex",
+    "targetType": "executable",
+    "dependencies": {
+        "dex": {
+            "path": "../.."
+        }
+    }
+}

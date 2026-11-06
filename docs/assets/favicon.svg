@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="8" fill="#f59e0b"/>
+    <text x="16" y="24" text-anchor="middle"
+          font-family="Liberation Mono, monospace"
+          font-size="22" font-weight="700" fill="#1a1204">d</text>
+</svg>

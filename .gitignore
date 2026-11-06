@@ -1,0 +1,11 @@
+.dub/
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.pdb
+/dex-test-library
+/examples/hello/hello
+/examples/todos/todos
+/examples/auth-cors/auth-cors
