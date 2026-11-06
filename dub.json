@@ -1,7 +1,8 @@
 {
     "name": "dex",
     "description": "Express-inspired, ergonomic web framework for D",
-    "authors": ["Ernest"],
+    "authors": ["Ernestas Leliuga"],
+    "copyright": "Copyright © 2026, Ernestas Leliuga",
     "license": "MIT",
     "targetType": "library",
     "sourcePaths": ["source"],

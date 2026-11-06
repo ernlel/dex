@@ -426,6 +426,10 @@ port.
 See [CHANGELOG.md](CHANGELOG.md) for release history and migration notes.
 See [ROADMAP.md](ROADMAP.md) for planned features, upcoming milestones, and wishlist items.
 
+## Author
+
+**Ernestas Leliuga** ([@ernlel](https://github.com/ernlel))
+
 ## License
 
-MIT. See `LICENSE`.
+MIT &copy; 2026 Ernestas Leliuga. See [LICENSE](LICENSE).
