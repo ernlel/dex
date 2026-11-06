@@ -1,5 +1,9 @@
 # dex
 
+[![CI](https://github.com/ernlel/dex/actions/workflows/ci.yml/badge.svg)](https://github.com/ernlel/dex/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://ernlel.github.io/dex/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Express-inspired web framework for D. Small surface area, zero dependencies
 outside Phobos, and a built-in HTTP/1.1 server.
 
