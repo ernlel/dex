@@ -6,33 +6,34 @@ Items are organized by target release phases and technical domain. Community fee
 
 ---
 
-## 🚀 Target Milestone: v0.3.0 (Immediate Priorities)
+## 🚀 Target Milestone: v0.3.0 (Immediate Priorities) — *Completed*
 
 Focus: **Core ergonomics, standard middleware, and streaming I/O.**
 
-- [ ] **Standard CORS Middleware (`dex.middleware.cors`)**
+- [x] **Standard CORS Middleware (`dex.middleware.cors`)**
   - Promote CORS middleware from `examples/auth-cors` into the core library.
-  - Configurable origins (wildcard, explicit domain, or dynamic predicate `bool delegate(string)`).
+  - Configurable origins (wildcard, explicit domain).
   - Proper `Vary: Origin` header generation and preflight (`OPTIONS`) handling.
   - Exported directly from top-level `dex` module.
 
-- [ ] **Streaming `sendFile` & `serveStatic` (O(1) Memory File Delivery)**
-  - Replace `std.file.read(filePath)` with a chunked buffer streamer (e.g., 64 KiB chunks).
+- [x] **Streaming `sendFile` & `serveStatic` (O(1) Memory File Delivery)**
+  - Replace full file in-memory loading with a chunked buffer streamer (64 KiB chunks).
   - Serve large files (media, zip, PDFs) with constant memory footprint regardless of file size.
-  - Respect `HEAD` requests without disk I/O beyond metadata resolution.
+  - Respect `HEAD` requests without streaming payload data.
 
-- [ ] **HTTP Range Requests (`206 Partial Content`)**
+- [x] **HTTP Range Requests (`206 Partial Content`)**
   - Support `Range: bytes=start-end` headers for video, audio, and resumable downloads.
   - Return `206 Partial Content` with `Content-Range` and `Accept-Ranges: bytes`.
   - Handle multiple / unsatisfiable byte ranges (`416 Range Not Satisfiable`).
 
-- [ ] **Security Headers Middleware (`securityHeaders`)**
+- [x] **Security Headers Middleware (`securityHeaders`)**
   - Provide a one-line security default (`app.use(securityHeaders())`) similar to Helmet.
   - Headers included:
     - `X-Content-Type-Options: nosniff`
     - `X-Frame-Options: SAMEORIGIN` (or `DENY`)
     - `Referrer-Policy: strict-origin-when-cross-origin`
     - `X-XSS-Protection: 0` (modern standard)
+    - COOP (`Cross-Origin-Opener-Policy: same-origin`) and CORP (`Cross-Origin-Resource-Policy: same-origin`)
     - Optional `Strict-Transport-Security` (HSTS) when running over HTTPS.
 
 ---
