@@ -34,4 +34,5 @@ jobs:
         run: |
           (cd examples/hello && dub build)
           (cd examples/todos && dub build)
-          (cd examples/auth-cors && dub build)
+          (cd examples/api-server && dub build)
+          (cd examples/file-server && dub build)

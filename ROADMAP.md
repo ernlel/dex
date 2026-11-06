@@ -42,16 +42,19 @@ Focus: **Core ergonomics, standard middleware, and streaming I/O.**
 
 Focus: **Payload optimization, protection, and operational readiness.**
 
-- [ ] **View Engine & Template System (`res.render`)**
+- [x] **View Engine & Template System (`res.render`)**
   - Express-style view engine integration:
-    - `app.setViews(string dir)` (e.g. `"./views"`).
+    - `app.setViews(string dir)` (defaults to `"./views"`).
     - `app.engine(string ext, string delegate(string templatePath, JSONValue locals) renderer)`.
-    - `res.render(T)(string view, auto ref T locals)` with automatic `text/html` header and layout support.
-  - Built-in lightweight, zero-dependency template engine:
+    - `res.render(T)(string view, auto ref T locals)` with automatic `text/html; charset=utf-8` header and typed D locals.
+  - Built-in lightweight, zero-dependency template engine (`dex.view`):
     - Variable interpolation (`{{title}}`, `{{user.name}}`).
-    - Conditionals (`{{#if user}}...{{/if}}`) and loops (`{{#each items}}...{{/each}}`).
-    - Automatic HTML escaping to prevent XSS.
-  - Template caching with development auto-reload mode (`app.cacheViews = bool`).
+    - Raw unescaped output (`{{{raw}}}` and `{{&raw}}`).
+    - Conditionals (`{{#if user}}...{{else}}...{{/if}}`, `{{#unless guest}}...{{/unless}}`, and Mustache inverted `{{^empty}}...{{/empty}}`).
+    - Loops (`{{#each items}}...{{else}}...{{/each}}`) with `@index`, `@first`, `@last`, `@key`, and `{{this}}`.
+    - Partials (`{{> header}}`).
+    - Automatic fast-path HTML escaping to prevent XSS.
+  - In-memory thread-safe template caching (`app.cacheViews = bool`).
 
 - [ ] **Response Compression Middleware (`compression()`)**
   - Gzip and Deflate streaming compression using Phobos `std.zlib`.

@@ -5,6 +5,7 @@ import std.array : join;
 import std.json : JSONException, JSONType, JSONValue, parseJSON;
 import std.string : endsWith, icmp, indexOf, startsWith, toLower;
 
+import dex.app : App;
 import dex.errors : HttpError;
 import dex.http : decodePath, hostName, mediaType, mimeType, parseCookies,
                   parseQueryString;
@@ -58,6 +59,11 @@ class Request
     bool secure;
     /// Whether the request was made with `X-Requested-With: XMLHttpRequest`.
     bool xhr;
+
+    package App _app;
+
+    /// The application instance handling this request.
+    @property App app() { return _app; }
 
     package this()
     {

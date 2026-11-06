@@ -886,3 +886,106 @@ unittest
     assert(response.headers["access-control-allow-methods"] == "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     assert(response.headers["access-control-allow-headers"] == "Authorization");
 }
+
+// Built-in template engine unit tests.
+unittest
+{
+    import std.json : JSONValue, parseJSON;
+    import dex.view : renderTemplate, escapeHtml;
+
+    // 1. Variable interpolation & HTML escaping
+    auto locals1 = parseJSON(`{"name": "Alice & Bob <tag>", "raw": "<b>bold</b>"}`);
+    string tpl1 = "Hello, {{name}}! {{{raw}}} {{&raw}}";
+    string out1 = renderTemplate(tpl1, locals1);
+    assert(out1 == "Hello, Alice &amp; Bob &lt;tag&gt;! <b>bold</b> <b>bold</b>");
+
+    // 2. Dot notation & index access
+    auto locals2 = parseJSON(`{"user": {"profile": {"city": "Vilnius"}}, "tags": ["dlang", "dex"]}`);
+    string tpl2 = "City: {{user.profile.city}}, First tag: {{tags.0}}, Second tag: {{tags.1}}";
+    string out2 = renderTemplate(tpl2, locals2);
+    assert(out2 == "City: Vilnius, First tag: dlang, Second tag: dex");
+
+    // 3. Conditionals (if, unless, else, mustache inverted ^)
+    auto locals3 = parseJSON(`{"admin": true, "guest": false, "emptyList": []}`);
+    string tpl3 = "{{#if admin}}Admin{{else}}User{{/if}} | {{#unless guest}}NotGuest{{/unless}} | {{^emptyList}}NoItems{{else}}HasItems{{/emptyList}}";
+    string out3 = renderTemplate(tpl3, locals3);
+    assert(out3 == "Admin | NotGuest | NoItems");
+
+    // 4. Loops (array of objects, primitives, @index, @first, @last)
+    auto locals4 = parseJSON(`{"items": [{"name": "A"}, {"name": "B"}], "tags": ["one", "two"]}`);
+    string tpl4 = "{{#each items}}[{{@index}}:{{name}}:first={{@first}}:last={{@last}}]{{/each}} | {{#each tags}}({{this}}){{/each}}";
+    string out4 = renderTemplate(tpl4, locals4);
+    assert(out4 == "[0:A:first=true:last=false][1:B:first=false:last=true] | (one)(two)");
+
+    // 5. Comments
+    string tpl5 = "Start{{! this is a comment }}Middle{{!-- long comment --}}End";
+    string out5 = renderTemplate(tpl5, JSONValue(string[string].init));
+    assert(out5 == "StartMiddleEnd");
+}
+
+// End-to-end view rendering with App and res.render()
+unittest
+{
+    import std.datetime.systime : Clock;
+    import std.file : mkdirRecurse, rmdirRecurse, tempDir, write;
+    import std.path : buildPath;
+
+    string testViewsDir = buildPath(tempDir(), "dex_test_views_" ~ to!string(Clock.currTime().toUnixTime()));
+    mkdirRecurse(testViewsDir);
+    scope (exit)
+    {
+        if (exists(testViewsDir))
+            rmdirRecurse(testViewsDir);
+    }
+
+    // Create partial and main template
+    write(buildPath(testViewsDir, "header.html"), "<header>Title: {{title}}</header>");
+    write(buildPath(testViewsDir, "profile.html"), "{{> header}}\n<main>Welcome, {{name}}!</main>");
+
+    struct UserLocals
+    {
+        string title;
+        string name;
+    }
+
+    auto app = new App;
+    scope (exit) app.close();
+
+    app.setViews(testViewsDir);
+    app.cacheViews = true;
+
+    app.get("/profile", (req, res)
+    {
+        res.render("profile", UserLocals("My App", "Ernestas Leliuga"));
+    });
+
+    // Custom engine test
+    app.engine("upper", (path, locals)
+    {
+        import std.file : readText;
+        import std.string : toUpper;
+        return readText(path).toUpper();
+    });
+    write(buildPath(testViewsDir, "custom.upper"), "custom content");
+    app.get("/custom", (req, res)
+    {
+        res.render("custom.upper");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // GET /profile: verify rendered HTML and Content-Type
+    connection.send("GET", "/profile");
+    auto response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["content-type"] == "text/html; charset=utf-8");
+    assert(response.body == "<header>Title: My App</header>\n<main>Welcome, Ernestas Leliuga!</main>");
+
+    // GET /custom: verify custom engine
+    connection.send("GET", "/custom");
+    response = connection.read();
+    assert(response.status == 200);
+    assert(response.body == "CUSTOM CONTENT");
+}

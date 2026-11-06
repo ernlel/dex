@@ -9,6 +9,7 @@ import std.file : getSize, isFile, read, timeLastModified;
 import std.path : extension;
 import std.string : toLower;
 
+import dex.app : App;
 import dex.errors : HttpError;
 import dex.http : encodeCookieValue, httpDate, isToken, mimeType,
                   reasonPhrase, validCookieName;
@@ -57,8 +58,15 @@ class Response
     bool _finished;
     bool _forceClose;
     void delegate(Response)[] _finishCallbacks;
+    App _app;
 
     public:
+
+    /// The application instance handling this response.
+    @property App app()
+    {
+        return _app;
+    }
 
     package this(Request request)
     {
@@ -192,6 +200,28 @@ class Response
     Response sendJson(T)(auto ref T value)
     {
         return json(value);
+    }
+
+    /// Render a view template using the application's view engine and send as HTML.
+    Response render(T)(string viewName, auto ref T locals)
+    {
+        if (_finished)
+            return this;
+        if (_app is null)
+            throw new Exception("Cannot render view: Response is not associated with an App");
+
+        auto jsonLocals = toJSONValue(locals);
+        string renderedHtml = _app.renderView(viewName, jsonLocals);
+        if (!has("content-type"))
+            type("html");
+        return send(renderedHtml);
+    }
+
+    /// Render a view template without locals.
+    Response render(string viewName)
+    {
+        import std.json : JSONValue;
+        return render(viewName, JSONValue(string[string].init));
     }
 
     /// End the response with an optional raw body and no automatic content type.

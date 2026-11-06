@@ -1,0 +1,10 @@
+{
+    "name": "file-server",
+    "description": "Static file and chunked media streaming server supporting HTTP range requests, custom cache headers, and downloads",
+    "targetType": "executable",
+    "dependencies": {
+        "dex": {
+            "path": "../.."
+        }
+    }
+}

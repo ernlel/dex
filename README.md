@@ -356,33 +356,56 @@ TLS is not implemented; terminate TLS at a reverse proxy.
 
 ## Examples
 
-- `examples/hello` — basic routes, parameters, JSON, logger.
-- `examples/todos` — in-memory JSON CRUD API with a router and a mutex.
-- `examples/auth-cors` — Basic Auth plus CORS/preflight middleware.
+- `examples/hello` — minimal hello world with basic routes, parameters, JSON, and logger.
+- `examples/todos` — thread-safe in-memory JSON CRUD API with sub-routers and mutex locking.
+- `examples/api-server` — production-ready REST microservice featuring Bearer token auth, modular sub-routers, query filtering, request validation, CORS, security headers, and structured JSON error responses.
+- `examples/file-server` — static asset and chunked media streaming server with custom cache headers, file metadata API, and HTTP Range request (`206 Partial Content`) support.
 
 ```sh
 cd examples/hello && dub run
 cd examples/todos && dub run
-cd examples/auth-cors && dub run
+cd examples/api-server && dub run
+cd examples/file-server && dub run
 ```
 
-`examples/auth-cors` reads optional environment variables:
+### Testing `examples/api-server`:
 
 ```sh
-BASIC_AUTH_USER=admin BASIC_AUTH_PASS=secret CORS_ORIGIN='*' \
-    dub run
+# Health check
+curl -i http://localhost:3000/health
+
+# List products
+curl -i http://localhost:3000/api/v1/products
+
+# Filter products by category and search term
+curl -i "http://localhost:3000/api/v1/products?category=electronics&search=mouse"
+
+# Authenticate and get a Bearer token
+curl -i -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "dexpass"}'
+
+# Create a product (requires Bearer token)
+curl -i -X POST http://localhost:3000/api/v1/products \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer secret-token-123" \
+  -d '{"name": "Wireless Headset", "category": "electronics", "price": 99.99}'
 ```
 
-With the defaults:
+### Testing `examples/file-server`:
 
 ```sh
-curl -i http://localhost:3000/api/me
-curl -u admin:secret http://localhost:3000/api/me
+# Fetch static homepage
+curl -i http://localhost:3000/
 
-curl -i -X OPTIONS http://localhost:3000/api/echo \
-    -H 'Origin: https://app.example' \
-    -H 'Access-Control-Request-Method: POST' \
-    -H 'Access-Control-Request-Headers: content-type, authorization'
+# Fetch file metadata list
+curl -i http://localhost:3000/api/files
+
+# Test HTTP Range streaming (206 Partial Content)
+curl -i -H "Range: bytes=0-20" http://localhost:3000/media.txt
+
+# Download file as attachment
+curl -i http://localhost:3000/download/sample.txt
 ```
 
 ## Landing page
