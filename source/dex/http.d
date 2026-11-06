@@ -128,7 +128,29 @@ string httpDate(SysTime time)
                   t.second);
 }
 
-private int hexValue(char c) pure nothrow @safe
+/// RFC 9110 `tchar`: characters allowed in tokens (methods, header names).
+bool isTokenChar(char c) pure nothrow @nogc @safe
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '!' || c == '#' || c == '$' ||
+           c == '%' || c == '&' || c == '\'' || c == '*' || c == '+' ||
+           c == '-' || c == '.' || c == '^' || c == '_' || c == '`' ||
+           c == '|' || c == '~';
+}
+
+/// Whether `value` is a non-empty RFC 9110 token.
+bool isToken(const(char)[] value) pure nothrow @nogc @safe
+{
+    if (value.length == 0)
+        return false;
+    foreach (const char c; value)
+        if (!isTokenChar(c))
+            return false;
+    return true;
+}
+
+/// Value of a hex digit, or -1.
+int hexValue(char c) pure nothrow @nogc @safe
 {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
@@ -137,17 +159,23 @@ private int hexValue(char c) pure nothrow @safe
 }
 
 /// Decode `%XX` escapes. Malformed escapes are preserved verbatim.
+///
+/// Returns `input` itself (no allocation) when there is nothing to decode.
 string percentDecode(string input, bool plusAsSpace = false)
 {
-    char[] out_;
-    out_.reserve(input.length);
+    import std.exception : assumeUnique;
 
+    if (input.indexOf('%') < 0 && (!plusAsSpace || input.indexOf('+') < 0))
+        return input;
+
+    auto out_ = new char[input.length];
+    size_t n;
     for (size_t i = 0; i < input.length; ++i)
     {
-        const c = input[i];
+        char c = input[i];
         if (plusAsSpace && c == '+')
         {
-            out_ ~= ' ';
+            c = ' ';
         }
         else if (c == '%' && i + 2 < input.length)
         {
@@ -155,25 +183,21 @@ string percentDecode(string input, bool plusAsSpace = false)
             const lo = hexValue(input[i + 2]);
             if (hi >= 0 && lo >= 0)
             {
-                out_ ~= cast(char) ((hi << 4) | lo);
+                c = cast(char) ((hi << 4) | lo);
                 i += 2;
             }
-            else
-            {
-                out_ ~= c;
-            }
         }
-        else
-        {
-            out_ ~= c;
-        }
+        out_[n++] = c;
     }
-    return out_.idup;
+    return assumeUnique(out_[0 .. n]);
 }
 
 /// Decode a URL path segment-by-segment. Slashes remain separators.
 string decodePath(string rawPath)
 {
+    if (rawPath.indexOf('%') < 0)
+        return rawPath;
+
     char[] out_;
     out_.reserve(rawPath.length);
     size_t start = 0;
@@ -195,24 +219,29 @@ string decodePath(string rawPath)
 /// Percent-encode a cookie value so it round-trips through `parseCookies`.
 string encodeCookieValue(string value)
 {
+    import std.exception : assumeUnique;
+
     static immutable char[] safe =
         "!#$&'()*+-./:<=>?@[]^_`{|}~";
+    static immutable char[] hexDigits = "0123456789ABCDEF";
     char[] out_;
     out_.reserve(value.length);
     foreach (const char c; value)
     {
-        const u = cast(ubyte) c;
-        if ((u >= 'a' && u <= 'z') || (u >= 'A' && u <= 'Z') ||
-            (u >= '0' && u <= '9') || canFind(safe, c))
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || canFind(safe, c))
         {
             out_ ~= c;
         }
         else
         {
-            out_ ~= format("%%%02X", u);
+            const u = cast(ubyte) c;
+            out_ ~= '%';
+            out_ ~= hexDigits[u >> 4];
+            out_ ~= hexDigits[u & 0xF];
         }
     }
-    return out_.idup;
+    return assumeUnique(out_);
 }
 
 private bool isCookieNameChar(char c) pure nothrow @safe

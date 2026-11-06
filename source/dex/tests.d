@@ -1,7 +1,11 @@
+/// Integration tests. Compiled only for `dub test`.
 module dex.tests;
 
+version (unittest):
+
+import core.thread : Thread;
 import core.time : dur;
-import std.array : join;
+import std.array : join, replicate;
 import std.conv : to;
 import std.file : exists, mkdirRecurse, rmdirRecurse, write;
 import std.json : JSONType, JSONValue, parseJSON;
@@ -646,4 +650,195 @@ unittest
 
     assert(lines.length == 1, lines.length ? lines[0] : "no log line");
     assert(lines[0].indexOf(" 404 ") >= 0, lines[0]);
+}
+
+// Regression: a header line split across TCP segments used to trigger an
+// overlapping array copy in the reader and silently drop the connection.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.get("/", (req, res) { res.send(req.get("x-long")); });
+    app.start(0, "127.0.0.1");
+
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+    const value = replicate("a", 300);
+    connection.sendRaw("GET / HTTP/1.1\r\nHost: x\r\nX-Long: " ~ value[0 .. 200]);
+    Thread.sleep(dur!"msecs"(50));
+    connection.sendRaw(value[200 .. $] ~ "\r\n\r\n");
+    connection.lastMethod = "GET";
+    auto response = connection.read();
+    assert(response.status == 200);
+    assert(response.body == value);
+}
+
+// Pipelined requests and bodies larger than the coalescing/read chunk sizes.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.get("/a", (req, res) { res.send("a"); });
+    app.post("/len", (req, res) { res.send(to!string(req.rawBody.length)); });
+    app.get("/big", (req, res) { res.send(replicate("x", 100_000)); });
+    app.start(0, "127.0.0.1");
+
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+    connection.sendRaw("GET /a HTTP/1.1\r\nHost: x\r\n\r\n" ~
+                       "GET /a HTTP/1.1\r\nHost: x\r\n\r\n");
+    connection.lastMethod = "GET";
+    assert(connection.read().body == "a");
+    assert(connection.read().body == "a");
+
+    connection.send("POST", "/len", replicate("y", 200_000), "text/plain");
+    assert(connection.read().body == "200000");
+
+    connection.send("GET", "/big");
+    assert(connection.read().body.length == 100_000);
+}
+
+// A mounted router's error handlers must not handle errors raised by the
+// parent after the request left the sub-router.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.logErrors = false;
+
+    auto api = new Router;
+    // A pass-through middleware (auth, logging...) puts the parent's
+    // continuation inside this router's call stack.
+    api.use((req, res, next) { next(); });
+    api.get("/known", (req, res) { res.send("known"); });
+    api.use((Throwable error, Request req, Response res, Next next)
+    {
+        res.status(500).send("api handler");
+    });
+    app.use("/api", api);
+    app.get("/api/later", (req, res) { throw new HttpError(409, "parent"); });
+    app.use((Throwable error, Request req, Response res, Next next)
+    {
+        res.status(499).send("app handler");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    connection.send("GET", "/api/later");
+    auto response = connection.read();
+    assert(response.status == 499, response.body);
+    assert(response.body == "app handler");
+}
+
+// Malformed JSON reaches app error handlers instead of a raw socket error,
+// and routes that never read the body are unaffected by it.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.post("/echo", (req, res) { res.json(req.body); });
+    app.post("/ignore", (req, res) { res.send("ignored"); });
+    app.use((Throwable error, Request req, Response res, Next next)
+    {
+        auto httpError = cast(HttpError) error;
+        res.status(httpError ? httpError.status : 500)
+           .json(["error": error.msg]);
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    connection.send("POST", "/echo", "{bad", "application/json");
+    auto response = connection.read();
+    assert(response.status == 400);
+    assert(parseJSON(response.body)["error"].str == "Invalid JSON body");
+
+    connection.send("POST", "/ignore", "{bad", "application/json");
+    response = connection.read();
+    assert(response.status == 200);
+    assert(response.body == "ignored");
+}
+
+// `type()` must not allow CRLF header injection; `onFinish` is public.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.logErrors = false;
+
+    int finished;
+    app.use((req, res, next) { res.onFinish((r) { ++finished; }); next(); });
+    app.get("/inject", (req, res)
+    {
+        res.type("text/html\r\nX-Injected: 1").send("x");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    connection.send("GET", "/inject");
+    auto response = connection.read();
+    assert(response.status == 500);
+    assert("x-injected" !in response.headers);
+    assert(finished == 1);
+}
+
+// Streaming sendFile with Range requests and Accept-Ranges.
+unittest
+{
+    import std.file : write, remove;
+
+    const testFile = "/tmp/dex-range-test-" ~ to!string(thisProcessID) ~ ".txt";
+    write(testFile, "0123456789abcdefghijklmnopqrstuvwxyz");
+    scope (exit)
+    {
+        if (exists(testFile))
+            remove(testFile);
+    }
+
+    auto app = new App;
+    scope (exit) app.close();
+    app.get("/file", (req, res) { res.sendFile(testFile); });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // Normal full file request
+    connection.send("GET", "/file");
+    auto response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["accept-ranges"] == "bytes");
+    assert(response.body == "0123456789abcdefghijklmnopqrstuvwxyz");
+
+    // Range: bytes=0-9 (first 10 bytes)
+    connection.send("GET", "/file", null, null, "Range: bytes=0-9\r\n");
+    response = connection.read();
+    assert(response.status == 206);
+    assert(response.headers["content-range"] == "bytes 0-9/36");
+    assert(response.body == "0123456789");
+
+    // Range: bytes=10-15
+    connection.send("GET", "/file", null, null, "Range: bytes=10-15\r\n");
+    response = connection.read();
+    assert(response.status == 206);
+    assert(response.headers["content-range"] == "bytes 10-15/36");
+    assert(response.body == "abcdef");
+
+    // Range: bytes=30- (from 30 to end)
+    connection.send("GET", "/file", null, null, "Range: bytes=30-\r\n");
+    response = connection.read();
+    assert(response.status == 206);
+    assert(response.headers["content-range"] == "bytes 30-35/36");
+    assert(response.body == "uvwxyz");
+
+    // Unsatisfiable Range: bytes=100-200
+    connection.send("GET", "/file", null, null, "Range: bytes=100-200\r\n");
+    response = connection.read();
+    assert(response.status == 416);
+    assert(response.headers["content-range"] == "bytes */36");
 }

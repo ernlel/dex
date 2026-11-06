@@ -35,7 +35,7 @@ Middleware logger(void delegate(string) sink = null)
     return (Request request, Response response, Next next)
     {
         const started = MonoTime.currTime;
-        response._finishCallbacks ~= (Response finished)
+        response.onFinish((Response finished)
         {
             const elapsed = (MonoTime.currTime - started).total!"msecs";
             auto line = format("%s %s %d %dms", request.method,
@@ -45,7 +45,7 @@ Middleware logger(void delegate(string) sink = null)
                 stderr.writeln(line);
             else
                 sink(line);
-        };
+        });
         next();
     };
 }
@@ -58,6 +58,10 @@ Middleware logger(void delegate(string) sink = null)
 /// ---
 Middleware serveStatic(string root, StaticOptions options = StaticOptions.init)
 {
+    // Resolved once; the root itself may not exist yet.
+    const rootAbsolute = buildNormalizedPath(absolutePath(root));
+    const rootPrefix = withTrailingSeparator(rootAbsolute);
+
     return (Request request, Response response, Next next)
     {
         if (request.method != "GET" && request.method != "HEAD")
@@ -78,30 +82,20 @@ Middleware serveStatic(string root, StaticOptions options = StaticOptions.init)
             return;
         }
 
-        const parts = relative.split('/');
-        foreach (part; parts)
+        foreach (part; relative.split('/'))
         {
             if (part.length == 0)
                 continue;
-            if (part == ".." || part == ".")
-            {
-                next();
-                return;
-            }
-            if (!options.dotFiles && part.startsWith("."))
+            if (part == ".." || part == "." ||
+                (!options.dotFiles && part.startsWith(".")))
             {
                 next();
                 return;
             }
         }
 
-        auto rootAbsolute = buildNormalizedPath(absolutePath(root));
-        const rootPrefix = rootAbsolute == dirSeparator ||
-                           rootAbsolute[$ - 1] == dirSeparator[0]
-            ? rootAbsolute : rootAbsolute ~ dirSeparator;
         auto filePath = buildNormalizedPath(rootAbsolute, relative);
-        if (filePath != rootAbsolute &&
-            !filePath.startsWith(rootPrefix))
+        if (filePath != rootAbsolute && !filePath.startsWith(rootPrefix))
         {
             next();
             return;
@@ -119,11 +113,8 @@ Middleware serveStatic(string root, StaticOptions options = StaticOptions.init)
                 // Resolve symlinks before serving, so links cannot escape the root.
                 const realRoot = canonicalPath(rootAbsolute);
                 const realFile = canonicalPath(filePath);
-                const realPrefix = realRoot == dirSeparator ||
-                                   realRoot[$ - 1] == dirSeparator[0]
-                    ? realRoot : realRoot ~ dirSeparator;
                 if (realFile == realRoot ||
-                    realFile.startsWith(realPrefix))
+                    realFile.startsWith(withTrailingSeparator(realRoot)))
                 {
                     data = cast(ubyte[]) read(filePath);
                     lastModified = timeLastModified(filePath);
@@ -152,6 +143,12 @@ Middleware serveStatic(string root, StaticOptions options = StaticOptions.init)
         response.set("last-modified", httpDate(lastModified));
         response.sendBytes(data);
     };
+}
+
+private string withTrailingSeparator(string path)
+{
+    return path.length && path[$ - 1] == dirSeparator[0]
+        ? path : path ~ dirSeparator;
 }
 
 private string canonicalPath(string path)

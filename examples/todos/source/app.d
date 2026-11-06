@@ -1,7 +1,7 @@
 import core.sync.mutex : Mutex;
 import dex;
 import std.algorithm.mutation : remove;
-import std.conv : to;
+import std.conv : ConvException, to;
 import std.stdio : writeln;
 
 struct Todo
@@ -9,6 +9,14 @@ struct Todo
     int id;
     string title;
     bool done;
+}
+
+private int parseId(Request req)
+{
+    try
+        return to!int(req.params["id"]);
+    catch (ConvException)
+        throw new HttpError(400, "Invalid todo id");
 }
 
 void main()
@@ -32,7 +40,7 @@ void main()
 
     app.get("/todos/:id", (req, res)
     {
-        const id = to!int(req.params["id"]);
+        const id = parseId(req);
         Todo found;
         bool exists;
 
@@ -70,7 +78,7 @@ void main()
 
     app.put("/todos/:id", (req, res)
     {
-        const id = to!int(req.params["id"]);
+        const id = parseId(req);
         const title = req.bodyValue!string("title");
         bool done = false;
 
@@ -103,7 +111,7 @@ void main()
 
     app.delete("/todos/:id", (req, res)
     {
-        const id = to!int(req.params["id"]);
+        const id = parseId(req);
         bool removed;
 
         synchronized (mutex)

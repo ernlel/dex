@@ -44,10 +44,11 @@ class Request
     /// Parsed cookies.
     string[string] cookies;
 
-    /// Parsed JSON, URL-encoded, or text body. `JSONValue(null)` otherwise.
-    JSONValue body;
     /// Raw request body bytes as a string.
     string rawBody;
+
+    private JSONValue _body;
+    private bool _bodyParsed;
 
     /// Remote IP address.
     string ip;
@@ -121,57 +122,56 @@ class Request
             xhr = (*xrw).length != 0 && icmp((*xrw)[0], "XMLHttpRequest") == 0;
 
         this.rawBody = cast(string) rawBodyBytes;
-        parseBody();
     }
 
-    private void parseBody()
+    /// Parsed JSON, URL-encoded, or text body. `JSONValue(null)` otherwise.
+    ///
+    /// Parsed lazily on first access, so routes that never read the body do
+    /// not pay for it. Throws `HttpError` (400) for malformed JSON; like any
+    /// handler error, it reaches the app's error middleware.
+    @property ref JSONValue body() return
+    {
+        if (!_bodyParsed)
+        {
+            _body = parseBody();
+            _bodyParsed = true;
+        }
+        return _body;
+    }
+
+    private JSONValue parseBody() const
     {
         if (rawBody.length == 0)
-        {
-            body = JSONValue(null);
-            return;
-        }
+            return JSONValue(null);
 
         const ct = contentType;
         try
         {
             if (ct == "application/json" || ct.endsWith("+json"))
-            {
-                body = parseJSON(rawBody);
-            }
-            else if (ct == "application/x-www-form-urlencoded")
-            {
-                JSONValue[string] object;
-                foreach (pair; parseQueryString(rawBody))
-                {
-                    if (pair.key !in object)
-                    {
-                        object[pair.key] = JSONValue(pair.value);
-                    }
-                    else
-                    {
-                        auto existing = object[pair.key];
-                        if (existing.type == JSONType.array)
-                            object[pair.key] = JSONValue(existing.array ~ JSONValue(pair.value));
-                        else
-                            object[pair.key] = JSONValue([existing, JSONValue(pair.value)]);
-                    }
-                }
-                body = JSONValue(object);
-            }
-            else if (ct.startsWith("text/"))
-            {
-                body = JSONValue(rawBody);
-            }
-            else
-            {
-                body = JSONValue(null);
-            }
+                return parseJSON(rawBody);
+            if (ct == "application/x-www-form-urlencoded")
+                return parseForm(rawBody);
+            if (ct.startsWith("text/"))
+                return JSONValue(rawBody);
+            return JSONValue(null);
         }
         catch (JSONException e)
         {
             throw new HttpError(400, "Invalid JSON body", __FILE__, __LINE__, e);
         }
+    }
+
+    /// URL-encoded form as a JSON object; repeated keys become arrays.
+    private static JSONValue parseForm(string input)
+    {
+        JSONValue[][string] values;
+        foreach (pair; parseQueryString(input))
+            values[pair.key] ~= JSONValue(pair.value);
+
+        JSONValue[string] object;
+        foreach (key, list; values)
+            object[key] = list.length == 1 ? list[0] : JSONValue(list);
+        return JSONValue(object);
     }
 
     /// Return a header value. Multiple values are joined with `", "`.
@@ -181,7 +181,7 @@ class Request
         auto values = name.toLower in headers;
         if (values is null)
             return null;
-        return (*values).join(", ");
+        return (*values).length == 1 ? (*values)[0] : (*values).join(", ");
     }
 
     /// Return all values for a header. Header names are case-insensitive.
@@ -257,12 +257,12 @@ class Request
     /// Retrieve a typed field from a JSON object or URL-encoded body.
     ///
     /// Throws `HttpError` (400) when the field is missing or has the wrong type.
-    T bodyValue(T)(string name) const
+    T bodyValue(T)(string name)
     {
-        if (body.type != JSONType.object)
+        auto parsed = body;
+        if (parsed.type != JSONType.object)
             throw new HttpError(400, "Request body is not a JSON object");
-        auto object = body.object;
-        auto value = name in object;
+        auto value = name in parsed.object;
         if (value is null)
             throw new HttpError(400, "Missing body field: " ~ name);
         try

@@ -253,6 +253,7 @@ res.status(201)
 | `cookie(name, value, options)` | Set a cookie |
 | `clearCookie(name, options)` | Expire a cookie |
 | `closeConnection()` | Close the TCP connection after the response |
+| `onFinish(callback)` | Register a callback run when response ends |
 
 `res.statusCode`, `res.headersSent`, `res.finished`, `res.bodyBytes`, and
 `res.bodyString` are also available.
@@ -415,6 +416,11 @@ dub test
 
 `dub test` runs the integration suite against a real server on an ephemeral
 port.
+
+## Releases & Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history and migration notes.
+See [ROADMAP.md](ROADMAP.md) for planned features, upcoming milestones, and wishlist items.
 
 ## License
 

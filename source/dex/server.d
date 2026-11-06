@@ -5,20 +5,23 @@ import core.atomic : atomicLoad, atomicOp, atomicStore;
 import core.sync.mutex : Mutex;
 import core.thread : Thread;
 import core.time : Duration, dur;
+import std.algorithm.comparison : max, min;
 import std.algorithm.mutation : remove;
 import std.array : appender, join;
 import std.conv : ConvException, to;
 import std.datetime : Clock;
-import std.format : format;
 import std.socket;
-import std.stdio : stderr;
+import std.stdio : File, stderr;
 import std.string : indexOf, split, startsWith, strip, toLower;
 
 import dex.app : App;
 import dex.errors : HttpError;
-import dex.http : httpDate, reasonPhrase;
+import dex.http : hexValue, httpDate, isToken, reasonPhrase;
 import dex.request : Request;
 import dex.response : Response;
+
+/// Bodies up to this size are sent in the same `send` call as the headers.
+private enum coalesceLimit = 16 * 1024;
 
 package class HttpServer
 {
@@ -68,7 +71,8 @@ package class HttpServer
             _maxHeaderSize = _app.maxHeaderSize;
             _maxConnections = _app.maxConnections;
 
-            auto address = new InternetAddress(host, port);
+            // `getAddress` resolves host names and supports IPv6 literals.
+            auto address = getAddress(host, port)[0];
             _listener = new Socket(address.addressFamily, SocketType.STREAM,
                                    ProtocolType.TCP);
             try
@@ -77,8 +81,7 @@ package class HttpServer
                                     SocketOption.REUSEADDR, 1);
                 _listener.bind(address);
                 _listener.listen(128);
-                auto local = cast(InternetAddress) _listener.localAddress;
-                _port = local.port;
+                _port = to!ushort(_listener.localAddress.toPortString);
             }
             catch (Throwable error)
             {
@@ -127,7 +130,7 @@ package class HttpServer
         synchronized (_mutex)
         {
             snapshot = _connections;
-            _connections.length = 0;
+            _connections = null;
         }
 
         foreach (ref connection; snapshot)
@@ -207,22 +210,11 @@ package class HttpServer
 
     private void spawnConnection(Socket socket)
     {
-        Thread thread;
-        thread = new Thread({
+        auto thread = new Thread({
             scope (exit)
             {
                 atomicOp!"-="(_activeConnections, 1);
-                synchronized (_mutex)
-                {
-                    foreach (i, connection; _connections)
-                    {
-                        if (connection.thread is Thread.getThis())
-                        {
-                            _connections = _connections.remove(i);
-                            break;
-                        }
-                    }
-                }
+                untrack(Thread.getThis());
             }
 
             try
@@ -249,18 +241,24 @@ package class HttpServer
         }
         catch (Throwable error)
         {
-            synchronized (_mutex)
+            untrack(thread);
+            throw error;
+        }
+    }
+
+    /// Forget a connection thread (it finished or never started).
+    private void untrack(Thread thread)
+    {
+        synchronized (_mutex)
+        {
+            foreach (i, connection; _connections)
             {
-                foreach (i, connection; _connections)
+                if (connection.thread is thread)
                 {
-                    if (connection.thread is thread)
-                    {
-                        _connections = _connections.remove(i);
-                        break;
-                    }
+                    _connections = _connections.remove(i);
+                    break;
                 }
             }
-            throw error;
         }
     }
 
@@ -270,6 +268,9 @@ package class HttpServer
                          _idleTimeout);
         socket.setOption(SocketOptionLevel.SOCKET, SocketOption.SNDTIMEO,
                          _idleTimeout);
+        // Responses are written in as few sends as possible; disable Nagle so
+        // the last segment is not delayed waiting for an ACK.
+        socket.setOption(SocketOptionLevel.TCP, SocketOption.TCP_NODELAY, 1);
 
         auto reader = SocketReader(socket);
         while (atomicLoad(_running))
@@ -391,9 +392,8 @@ package class HttpServer
                 throw new HttpError(400, "Malformed header");
 
             const name = line[0 .. colon];
-            foreach (const char c; name)
-                if (!isToken(c))
-                    throw new HttpError(400, "Malformed header name");
+            if (!isToken(name))
+                throw new HttpError(400, "Malformed header name");
 
             auto value = line[colon + 1 .. $].strip;
             if (value.indexOf('\0') >= 0)
@@ -506,47 +506,177 @@ package class HttpServer
     private void writeResponse(Socket socket, Request request, Response response,
                                bool keepAlive)
     {
-        auto header = appender!string;
-        header ~= "HTTP/1.1 " ~ to!string(response.statusCode) ~ " " ~
-            reasonPhrase(response.statusCode) ~ "\r\n";
+        if (response._filePath.length != 0)
+        {
+            streamFile(socket, request, response, keepAlive);
+            return;
+        }
 
-        bool hasDate;
-        bool hasServer;
+        const status = response.statusCode;
+        const noBody = status == 204 || status == 304 || status < 200;
+        const sendBody = !noBody && request.method != "HEAD" &&
+                         response._body.length != 0;
+        const coalesce = sendBody && response._body.length <= coalesceLimit;
+
+        auto output = appender!(char[]);
+        output.reserve(256 + (coalesce ? response._body.length : 0));
+
+        void header(scope const(char)[] name, scope const(char)[] value)
+        {
+            output.put(name);
+            output.put(": ");
+            output.put(value);
+            output.put("\r\n");
+        }
+
+        output.put("HTTP/1.1 ");
+        output.put(to!string(status));
+        output.put(' ');
+        output.put(reasonPhrase(status));
+        output.put("\r\n");
+
         foreach (name, value; response._headers)
         {
+            // Framing headers are always computed by the server.
             if (name == "connection" || name == "content-length" ||
                 name == "transfer-encoding")
             {
                 continue;
             }
-            header ~= name ~ ": " ~ value ~ "\r\n";
-            if (name == "date")
-                hasDate = true;
-            else if (name == "server")
-                hasServer = true;
+            header(name, value);
         }
 
-        if (!hasDate)
-            header ~= "Date: " ~ httpDate(Clock.currTime()) ~ "\r\n";
-        if (!hasServer)
-            header ~= "Server: dex\r\n";
+        if ("date" !in response._headers)
+            header("Date", httpDate(Clock.currTime()));
+        if ("server" !in response._headers)
+            header("Server", "dex");
 
         foreach (cookie; response._setCookies)
-            header ~= "Set-Cookie: " ~ cookie ~ "\r\n";
+            header("Set-Cookie", cookie);
 
-        const noBody = response.statusCode == 204 || response.statusCode == 304 ||
-                       response.statusCode < 200;
         if (!noBody)
-        {
-            header ~= "Content-Length: " ~ to!string(response._body.length) ~ "\r\n";
-        }
-        header ~= "Connection: " ~ (keepAlive ? "keep-alive" : "close") ~ "\r\n";
-        header ~= "\r\n";
+            header("Content-Length", to!string(response._body.length));
+        header("Connection", keepAlive ? "keep-alive" : "close");
+        output.put("\r\n");
 
-        sendAll(socket, header.data);
+        if (coalesce)
+            output.put(cast(const(char)[]) response._body);
 
-        if (!noBody && request.method != "HEAD" && response._body.length != 0)
+        sendAll(socket, output.data);
+        if (sendBody && !coalesce)
             sendAll(socket, response._body);
+    }
+
+    private void streamFile(Socket socket, Request request, Response response,
+                            bool keepAlive)
+    {
+        const fileSize = response._fileSize;
+        int status = response.statusCode;
+        ulong start = 0;
+        ulong end = fileSize > 0 ? fileSize - 1 : 0;
+        bool isRange = false;
+
+        if (request.method == "GET" && status == 200)
+        {
+            if (auto rangeHeader = request.get("range"))
+            {
+                ByteRange br;
+                if (parseByteRange(rangeHeader, fileSize, br))
+                {
+                    if (!br.satisfiable)
+                    {
+                        auto header = appender!(char[]);
+                        header.put("HTTP/1.1 416 Range Not Satisfiable\r\n");
+                        header.put("Content-Range: bytes */");
+                        header.put(to!string(fileSize));
+                        header.put("\r\nContent-Length: 0\r\nConnection: ");
+                        header.put(keepAlive ? "keep-alive" : "close");
+                        header.put("\r\n\r\n");
+                        sendAll(socket, header.data);
+                        return;
+                    }
+                    status = 206;
+                    start = br.start;
+                    end = br.end;
+                    isRange = true;
+                }
+            }
+        }
+
+        const length = (fileSize == 0 || (isRange && start > end)) ? 0 : (end - start + 1);
+
+        auto output = appender!(char[]);
+        output.reserve(256);
+
+        output.put("HTTP/1.1 ");
+        output.put(to!string(status));
+        output.put(' ');
+        output.put(reasonPhrase(status));
+        output.put("\r\n");
+
+        foreach (name, value; response._headers)
+        {
+            if (name == "connection" || name == "content-length" ||
+                name == "transfer-encoding" || name == "content-range" ||
+                name == "accept-ranges")
+            {
+                continue;
+            }
+            output.put(name);
+            output.put(": ");
+            output.put(value);
+            output.put("\r\n");
+        }
+
+        if ("date" !in response._headers)
+        {
+            output.put("Date: ");
+            output.put(httpDate(Clock.currTime()));
+            output.put("\r\n");
+        }
+        if ("server" !in response._headers)
+            output.put("Server: dex\r\n");
+
+        output.put("Accept-Ranges: bytes\r\n");
+        if (isRange)
+        {
+            output.put("Content-Range: bytes ");
+            output.put(to!string(start));
+            output.put('-');
+            output.put(to!string(end));
+            output.put('/');
+            output.put(to!string(fileSize));
+            output.put("\r\n");
+        }
+
+        output.put("Content-Length: ");
+        output.put(to!string(length));
+        output.put("\r\n");
+
+        output.put("Connection: ");
+        output.put(keepAlive ? "keep-alive" : "close");
+        output.put("\r\n\r\n");
+
+        sendAll(socket, output.data);
+
+        if (request.method != "HEAD" && length != 0)
+        {
+            auto file = File(response._filePath, "rb");
+            if (start > 0)
+                file.seek(cast(long) start);
+
+            ubyte[65536] chunkBuf;
+            ulong remaining = length;
+            while (remaining > 0)
+            {
+                const toRead = cast(size_t) min(remaining, chunkBuf.length);
+                const chunk = file.rawRead(chunkBuf[0 .. toRead]);
+                if (chunk.length == 0)
+                    break;
+                sendAll(socket, chunk);
+                remaining -= chunk.length;
+            }
+        }
     }
 
     private void sendError(Socket socket, int status, string message)
@@ -569,20 +699,81 @@ package class HttpServer
     private string remoteIp(Socket socket)
     {
         try
-        {
-            auto address = socket.remoteAddress;
-            if (auto inet = cast(InternetAddress) address)
-            {
-                const a = inet.addr;
-                return format("%d.%d.%d.%d", (a >> 24) & 0xFF,
-                              (a >> 16) & 0xFF, (a >> 8) & 0xFF, a & 0xFF);
-            }
-            return address.toString();
-        }
-        catch (Throwable)
-        {
+            return socket.remoteAddress.toAddrString();
+        catch (Exception)
             return "";
+    }
+}
+
+private struct ByteRange
+{
+    ulong start;
+    ulong end;
+    bool satisfiable;
+}
+
+private bool parseByteRange(string header, ulong fileSize, out ByteRange range)
+{
+    header = header.strip;
+    if (!header.startsWith("bytes="))
+        return false;
+    auto spec = header[6 .. $].strip;
+    if (spec.indexOf(',') >= 0)
+        return false;
+
+    const dash = spec.indexOf('-');
+    if (dash < 0)
+        return false;
+
+    auto first = spec[0 .. dash].strip;
+    auto last = spec[dash + 1 .. $].strip;
+
+    try
+    {
+        if (first.length == 0 && last.length == 0)
+            return false;
+
+        if (first.length == 0)
+        {
+            const suffix = to!ulong(last);
+            if (suffix == 0)
+                return false;
+            range.start = suffix >= fileSize ? 0 : fileSize - suffix;
+            range.end = fileSize > 0 ? fileSize - 1 : 0;
+            range.satisfiable = fileSize > 0;
+            return true;
         }
+
+        range.start = to!ulong(first);
+        if (range.start >= fileSize)
+        {
+            range.satisfiable = false;
+            return true;
+        }
+
+        if (last.length == 0)
+        {
+            range.end = fileSize > 0 ? fileSize - 1 : 0;
+            range.satisfiable = true;
+            return true;
+        }
+
+        range.end = to!ulong(last);
+        if (range.end >= fileSize)
+            range.end = fileSize > 0 ? fileSize - 1 : 0;
+
+        if (range.start > range.end)
+        {
+            range.satisfiable = false;
+            return true;
+        }
+
+        range.satisfiable = true;
+        return true;
+    }
+    catch (ConvException)
+    {
+        return false;
     }
 }
 
@@ -602,72 +793,84 @@ private struct RawRequest
     bool keepAlive;
 }
 
+/// Buffered reader over a blocking socket.
+///
+/// The buffer is reused for the lifetime of the connection, so pipelined
+/// bytes that belong to the next request are preserved. Anything returned to
+/// callers is copied out of the buffer.
 private struct SocketReader
 {
-    Socket socket;
-    ubyte[] buffer;
-    size_t start;
-    size_t end;
-    bool eof;
+    /// Initial buffer size and minimum growth step.
+    private enum chunkSize = 16 * 1024;
+
+    private Socket socket;
+    private ubyte[] buffer; // buffer[start .. end] holds unread bytes
+    private size_t start;
+    private size_t end;
+    private bool eof;
 
     this(Socket socket)
     {
         this.socket = socket;
     }
 
+    /// Receive more bytes. Returns `false` once the peer closed the stream.
     private bool fill()
     {
+        import core.stdc.string : memmove;
+
         if (eof)
             return false;
 
         if (start == end)
         {
-            start = 0;
-            end = 0;
-            buffer.length = 0;
+            start = end = 0;
         }
-        else if (start > 0)
+        else if (start > 0 && end == buffer.length)
         {
-            buffer[0 .. end - start] = buffer[start .. end];
+            // Slide unread bytes to the front. Source and target may overlap,
+            // which rules out slice assignment.
+            memmove(buffer.ptr, buffer.ptr + start, end - start);
             end -= start;
             start = 0;
-            buffer.length = end;
         }
+        if (end == buffer.length)
+            buffer.length = max(chunkSize, buffer.length * 2);
 
-        ubyte[16384] chunk;
-        const received = socket.receive(chunk[]);
+        const received = socket.receive(buffer[end .. $]);
         if (received <= 0)
         {
             eof = true;
             return false;
         }
-        buffer ~= chunk[0 .. cast(size_t) received];
         end += cast(size_t) received;
         return true;
     }
 
+    /// Read one CRLF/LF-terminated line (terminator excluded).
+    /// Returns `false` on a clean EOF before any byte of the line.
     bool readLine(ref string line, size_t maxLength)
     {
-        size_t scan = start;
+        size_t scanned; // bytes of buffer[start .. end] already searched
         while (true)
         {
-            for (; scan < end; ++scan)
-                if (buffer[scan] == '\n')
-                    break;
-
-            if (scan < end)
+            for (; start + scanned < end; ++scanned)
             {
-                auto lineEnd = scan;
-                if (lineEnd > start && buffer[lineEnd - 1] == '\r')
-                    --lineEnd;
-                if (lineEnd - start > maxLength)
+                if (buffer[start + scanned] != '\n')
+                    continue;
+
+                size_t length = scanned;
+                if (length > 0 && buffer[start + length - 1] == '\r')
+                    --length;
+                if (length > maxLength)
                     throw new HttpError(431, "Line too long");
-                line = bytesToString(buffer[start .. lineEnd]);
-                start = scan + 1;
+                line = (cast(const(char)[]) buffer[start .. start + length]).idup;
+                start += scanned + 1;
                 return true;
             }
 
-            if (end - start > maxLength)
+            // +1 leaves room for the CR of a line of exactly `maxLength`.
+            if (scanned > maxLength + 1)
                 throw new HttpError(431, "Line too long");
             if (!fill())
             {
@@ -675,32 +878,42 @@ private struct SocketReader
                     throw new HttpError(400, "Unexpected end of request");
                 return false;
             }
-            scan = start;
         }
     }
 
+    /// Read exactly `length` bytes.
     ubyte[] readExact(size_t length)
     {
-        ubyte[] result = new ubyte[length];
-        const buffered = end - start;
-        const copied = buffered < length ? buffered : length;
-        if (copied != 0)
-        {
-            result[0 .. copied] = buffer[start .. start + copied];
-            start += copied;
-        }
-
-        size_t offset = copied;
-        while (offset < length)
-        {
-            const received = socket.receive(result[offset .. $]);
-            if (received <= 0)
-                throw new HttpError(400, "Unexpected end of request body");
-            offset += cast(size_t) received;
-        }
+        ubyte[] result;
+        readInto(result, length);
         return result;
     }
 
+    /// Append exactly `length` bytes to `target`.
+    ///
+    /// The target grows as data arrives instead of being allocated up front,
+    /// so a client cannot reserve `maxBodySize` per connection just by
+    /// announcing a large `Content-Length`.
+    private void readInto(ref ubyte[] target, size_t length)
+    {
+        const buffered = min(end - start, length);
+        target ~= buffer[start .. start + buffered];
+        start += buffered;
+
+        size_t filled = target.length;
+        const total = filled + (length - buffered);
+        while (filled < total)
+        {
+            if (filled == target.length)
+                target.length = min(total, max(filled * 2, chunkSize));
+            const received = socket.receive(target[filled .. $]);
+            if (received <= 0)
+                throw new HttpError(400, "Unexpected end of request body");
+            filled += cast(size_t) received;
+        }
+    }
+
+    /// Read a `Transfer-Encoding: chunked` body. Trailers are discarded.
     ubyte[] readChunked(size_t maxLength, size_t maxHeaderLength)
     {
         ubyte[] body;
@@ -716,30 +929,35 @@ private struct SocketReader
 
             if (size == 0)
             {
-                size_t trailerBytes;
-                size_t trailerCount;
-                while (true)
-                {
-                    if (!readLine(line, maxHeaderLength))
-                        throw new HttpError(400, "Unexpected end of trailers");
-                    if (line.length == 0)
-                        break;
-                    trailerBytes += line.length + 2;
-                    if (trailerBytes > maxHeaderLength || ++trailerCount > 100)
-                        throw new HttpError(431, "Trailers too large");
-                }
-                break;
+                skipTrailers(maxHeaderLength);
+                return body;
             }
 
             if (size > maxLength - body.length)
                 throw new HttpError(413, "Payload Too Large");
-            body ~= readExact(size);
+            readInto(body, size);
 
             string chunkEnd;
             if (!readLine(chunkEnd, 2) || chunkEnd.length != 0)
                 throw new HttpError(400, "Malformed chunked body");
         }
-        return body;
+    }
+
+    private void skipTrailers(size_t maxHeaderLength)
+    {
+        size_t trailerBytes;
+        size_t trailerCount;
+        string line;
+        while (true)
+        {
+            if (!readLine(line, maxHeaderLength))
+                throw new HttpError(400, "Unexpected end of trailers");
+            if (line.length == 0)
+                return;
+            trailerBytes += line.length + 2;
+            if (trailerBytes > maxHeaderLength || ++trailerCount > 100)
+                throw new HttpError(431, "Trailers too large");
+        }
     }
 
     void sendRaw(const(char)[] data)
@@ -756,30 +974,14 @@ private size_t parseChunkSize(string hex)
     size_t result;
     foreach (const char c; hex)
     {
-        int value;
-        if (c >= '0' && c <= '9')
-            value = c - '0';
-        else if (c >= 'a' && c <= 'f')
-            value = c - 'a' + 10;
-        else if (c >= 'A' && c <= 'F')
-            value = c - 'A' + 10;
-        else
+        const value = hexValue(c);
+        if (value < 0)
             throw new HttpError(400, "Malformed chunk size");
-
         if (result > (size_t.max - value) / 16)
             throw new HttpError(413, "Payload Too Large");
         result = result * 16 + value;
     }
     return result;
-}
-
-private string bytesToString(ubyte[] bytes)
-{
-    char[] chars;
-    chars.length = bytes.length;
-    foreach (i, byte_; bytes)
-        chars[i] = cast(char) byte_;
-    return chars.idup;
 }
 
 private void sendAll(Socket socket, const(void)[] data)
@@ -792,28 +994,4 @@ private void sendAll(Socket socket, const(void)[] data)
             throw new Exception("Failed to send response");
         offset += cast(size_t) sent;
     }
-}
-
-private bool isTokenChar(char c) pure nothrow @safe
-{
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-           (c >= '0' && c <= '9') || c == '!' || c == '#' ||
-           c == '$' || c == '%' || c == '&' || c == '\'' ||
-           c == '*' || c == '+' || c == '-' || c == '.' ||
-           c == '^' || c == '_' || c == '`' || c == '|' || c == '~';
-}
-
-private bool isToken(string value) pure nothrow @safe
-{
-    if (value.length == 0)
-        return false;
-    foreach (const char c; value)
-        if (!isTokenChar(c))
-            return false;
-    return true;
-}
-
-private bool isToken(char c) pure nothrow @safe
-{
-    return isTokenChar(c);
 }

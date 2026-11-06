@@ -5,12 +5,12 @@ import core.time : Duration, dur;
 import std.array : join;
 import std.conv : to;
 import std.datetime : Clock;
-import std.file : isFile, read, timeLastModified;
+import std.file : getSize, isFile, read, timeLastModified;
 import std.path : extension;
 import std.string : toLower;
 
 import dex.errors : HttpError;
-import dex.http : encodeCookieValue, httpDate, mimeType,
+import dex.http : encodeCookieValue, httpDate, isToken, mimeType,
                   reasonPhrase, validCookieName;
 import dex.jsonx : toJSONValue;
 import dex.request : Request;
@@ -52,6 +52,8 @@ class Response
     string[string] _headers;
     string[] _setCookies;
     const(ubyte)[] _body;
+    string _filePath;
+    ulong _fileSize;
     bool _finished;
     bool _forceClose;
     void delegate(Response)[] _finishCallbacks;
@@ -139,7 +141,11 @@ class Response
     {
         if (_finished)
             return this;
-        _headers["content-type"] = mimeType(contentType);
+        const value = mimeType(contentType);
+        // A full MIME type is passed through verbatim; keep it header-safe.
+        if (!headerSafe(value))
+            throw new Exception("Invalid content type: " ~ contentType);
+        _headers["content-type"] = value;
         return this;
     }
 
@@ -220,21 +226,24 @@ class Response
         return type("text").send(reasonPhrase(code) ~ ". Redirecting to " ~ location);
     }
 
-    /// Send a file read from disk. Throws `HttpError` (404) if it is missing.
+    /// Send a file read from disk. Streamed in chunks by the server.
+    /// Throws `HttpError` (404) if the file is missing.
     Response sendFile(string filePath)
     {
         if (_finished)
             return this;
         if (!isFile(filePath))
             throw new HttpError(404, "Not Found");
-        auto data = cast(ubyte[]) read(filePath);
+        _filePath = filePath;
+        _fileSize = getSize(filePath);
         if (!has("content-type"))
         {
             const ext = extension(filePath);
             type(ext.length ? ext[1 .. $] : "");
         }
         set("last-modified", httpDate(timeLastModified(filePath)));
-        return sendBytes(data);
+        finish();
+        return this;
     }
 
     /// Set a cookie. Values are percent-encoded and round-trip through
@@ -258,6 +267,16 @@ class Response
         return this;
     }
 
+    /// Register a callback that runs once when the response is ended
+    /// (e.g. for logging or metrics). Exceptions thrown by callbacks are
+    /// ignored. Has no effect once the response is finished.
+    Response onFinish(void delegate(Response) callback)
+    {
+        if (!_finished && callback !is null)
+            _finishCallbacks ~= callback;
+        return this;
+    }
+
     /// Whether the response has been ended.
     @property bool headersSent() const
     {
@@ -273,6 +292,13 @@ class Response
     /// Raw response body bytes.
     const(ubyte)[] bodyBytes() const
     {
+        if (_body.length == 0 && _filePath.length != 0)
+        {
+            try
+                return cast(const(ubyte)[]) read(_filePath);
+            catch (Exception)
+                return null;
+        }
         return _body;
     }
 
@@ -293,7 +319,7 @@ class Response
         {
             try
                 callback(this);
-            catch (Throwable) {}
+            catch (Exception) {}
         }
     }
 
@@ -350,25 +376,10 @@ private bool headerSafe(string value) pure nothrow @safe
     return true;
 }
 
-private bool isTokenChar(char c) pure nothrow @safe
-{
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-           (c >= '0' && c <= '9') || c == '!' || c == '#' || c == '$' ||
-           c == '%' || c == '&' || c == '\'' || c == '*' || c == '+' ||
-           c == '-' || c == '.' || c == '^' || c == '_' || c == '`' ||
-           c == '|' || c == '~';
-}
-
 private void validateHeader(string name, string value)
 {
-    if (name.length == 0)
-        throw new Exception("Response header name must not be empty");
-    foreach (const char c; name)
-        if (!isTokenChar(c))
-            throw new Exception("Invalid response header name: " ~ name);
+    if (!isToken(name))
+        throw new Exception("Invalid response header name: " ~ name);
     if (!headerSafe(value))
         throw new Exception("Invalid response header value for " ~ name);
 }
-
-// `join` is only needed by `get`.
-private import std.array : join;

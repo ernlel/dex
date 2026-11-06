@@ -66,12 +66,26 @@ private enum LayerKind
     error
 }
 
+private enum PartKind
+{
+    literal,
+    param,
+    wildcard
+}
+
 private struct RoutePart
 {
-    bool isParam;
-    bool isWildcard;
-    string name;
-    string literal;
+    PartKind kind;
+    /// Parameter name (param/wildcard) or decoded text (literal).
+    string text;
+}
+
+/// Result of matching a request path against a `RoutePattern`.
+private struct PathMatch
+{
+    string[string] params;
+    /// Byte offset in the raw path just past the last matched segment.
+    size_t consumedEnd;
 }
 
 private struct RoutePattern
@@ -81,12 +95,7 @@ private struct RoutePattern
 
     static RoutePattern compile(string pattern)
     {
-        if (pattern.length == 0)
-            pattern = "/";
-        if (pattern[0] != '/')
-            pattern = "/" ~ pattern;
-        while (pattern.length > 1 && pattern[$ - 1] == '/')
-            pattern = pattern[0 .. $ - 1];
+        pattern = normalizePath(pattern);
 
         RoutePart[] parts;
         bool wildcardSeen = false;
@@ -100,119 +109,109 @@ private struct RoutePattern
             {
                 if (part.length == 1)
                     throw new Exception("Route parameter must have a name: " ~ pattern);
-                parts ~= RoutePart(true, false, part[1 .. $], null);
+                parts ~= RoutePart(PartKind.param, part[1 .. $]);
             }
             else if (part[0] == '*')
             {
-                parts ~= RoutePart(false, true,
-                                   part.length > 1 ? part[1 .. $] : "0", null);
+                parts ~= RoutePart(PartKind.wildcard,
+                                   part.length > 1 ? part[1 .. $] : "0");
                 wildcardSeen = true;
             }
             else
             {
-                parts ~= RoutePart(false, false, null, percentDecode(part));
+                parts ~= RoutePart(PartKind.literal, percentDecode(part));
             }
         }
         return RoutePattern(pattern, parts);
     }
 
+    /// Match `rawPath` segment by segment. With `asPrefix`, trailing segments
+    /// are allowed (used for mounted middleware and routers).
     bool matches(string rawPath, bool asPrefix, bool caseSensitive,
-                 out string[string] params, out size_t consumed) const
+                 out PathMatch match) const
     {
-        params = null;
-        const segments = rawSegments(rawPath);
-        size_t si = 0;
+        auto segments = Segments(rawPath);
 
         foreach (const ref part; parts)
         {
-            if (part.isWildcard)
+            final switch (part.kind)
             {
-                string joined;
-                for (; si < segments.length; ++si)
-                {
-                    const decoded = percentDecode(segments[si].text);
-                    if (joined.length)
-                        joined ~= "/";
-                    joined ~= decoded;
-                }
-                params[part.name] = joined;
-                if (part.name == "0")
-                    params["*"] = joined;
-                break;
-            }
+                case PartKind.wildcard:
+                    string joined;
+                    for (; !segments.empty; segments.popFront())
+                    {
+                        if (joined.length)
+                            joined ~= "/";
+                        joined ~= percentDecode(segments.front);
+                    }
+                    match.params[part.text] = joined;
+                    if (part.text == "0")
+                        match.params["*"] = joined;
+                    match.consumedEnd = rawPath.length;
+                    return true;
 
-            if (si >= segments.length)
-                return false;
-            const decoded = percentDecode(segments[si].text);
-            if (part.isParam)
-            {
-                params[part.name] = decoded;
+                case PartKind.param:
+                    if (segments.empty)
+                        return false;
+                    match.params[part.text] = percentDecode(segments.front);
+                    break;
+
+                case PartKind.literal:
+                    if (segments.empty)
+                        return false;
+                    const decoded = percentDecode(segments.front);
+                    if (caseSensitive ? decoded != part.text
+                                      : icmp(decoded, part.text) != 0)
+                        return false;
+                    break;
             }
-            else if (caseSensitive ? decoded != part.literal
-                                   : icmp(decoded, part.literal) != 0)
-            {
-                return false;
-            }
-            ++si;
+            match.consumedEnd = segments.frontEnd;
+            segments.popFront();
         }
 
-        if (!asPrefix && si != segments.length)
-            return false;
-        consumed = si;
-        return true;
+        return asPrefix || segments.empty;
     }
 }
 
-private struct RawSegment
+/// Lazy range over the non-empty, still-encoded segments of a raw path.
+private struct Segments
 {
-    string text;
-    size_t start;
-    size_t end;
-}
+    private string path;
+    private size_t start; // start of `front`
+    private size_t end;   // one past the end of `front`
 
-/// Split an encoded path into non-empty segments.
-private RawSegment[] rawSegments(string rawPath)
-{
-    RawSegment[] result;
-    if (rawPath.length == 0 || rawPath == "*")
-        return result;
-
-    size_t i = rawPath[0] == '/' ? 1 : 0;
-    while (i <= rawPath.length)
+    this(string rawPath)
     {
-        size_t j = i;
-        while (j < rawPath.length && rawPath[j] != '/')
-            ++j;
-        if (j > i)
-            result ~= RawSegment(rawPath[i .. j], i, j);
-        if (j >= rawPath.length)
-            break;
-        i = j + 1;
+        // `*` is the asterisk-form target (`OPTIONS *`), not a segment.
+        path = rawPath == "*" ? null : rawPath;
+        advanceFrom(0);
     }
-    return result;
+
+    @property bool empty() const { return start >= path.length; }
+    @property string front() const { return path[start .. end]; }
+    /// Byte offset just past `front`.
+    @property size_t frontEnd() const { return end; }
+    void popFront() { advanceFrom(end); }
+
+    private void advanceFrom(size_t i)
+    {
+        while (i < path.length && path[i] == '/')
+            ++i;
+        start = i;
+        while (i < path.length && path[i] != '/')
+            ++i;
+        end = i;
+    }
 }
 
-private string remainderPath(string rawPath, size_t consumed)
+/// Ensure a leading slash and strip trailing slashes. Empty becomes `/`.
+private string normalizePath(string path)
 {
-    if (consumed == 0)
-        return rawPath.length ? rawPath : "/";
-    const segments = rawSegments(rawPath);
-    if (consumed >= segments.length)
-        return "/";
-    size_t start = segments[consumed].start;
-    if (start > 0 && rawPath[start - 1] == '/')
-        --start;
-    return rawPath[start .. $];
-}
-
-private string consumedPath(string rawPath, size_t consumed)
-{
-    if (consumed == 0)
-        return "";
-    const segments = rawSegments(rawPath);
-    if (consumed > segments.length)
-        consumed = segments.length;
-    return rawPath[0 .. segments[consumed - 1].end];
+    if (path.length == 0 || path[0] != '/')
+        path = "/" ~ path;
+    while (path.length > 1 && path[$ - 1] == '/')
+        path = path[0 .. $ - 1];
+    return path;
 }
 
 private string[string] mergeParams(string[string] base, string[string] additions)
@@ -240,8 +239,9 @@ private struct Layer
 private struct LayerMatch
 {
     string[string] params;
-    size_t consumed;
+    /// Path left for a mounted layer, always starting with `/`.
     string remainder;
+    /// Raw path prefix consumed by a mounted layer.
     string consumedRaw;
 }
 
@@ -364,7 +364,7 @@ class Router
     {
         Layer layer;
         layer.kind = LayerKind.middleware;
-        const normalized = normalizePrefix(prefix);
+        const normalized = normalizePath(prefix);
         if (normalized != "/")
         {
             layer.hasPrefix = true;
@@ -380,19 +380,10 @@ class Router
             throw new Exception("Cannot mount a null router");
         if (router is this)
             throw new Exception("Cannot mount a router on itself");
-        Layer layer;
-        layer.kind = LayerKind.middleware;
-        const normalized = normalizePrefix(prefix);
-        if (normalized != "/")
-        {
-            layer.hasPrefix = true;
-            layer.pattern = RoutePattern.compile(normalized);
-        }
-        layer.invoke = (Request request, Response response, Next next)
+        addMiddleware(prefix, (Request request, Response response, Next next)
         {
             router.dispatch(request, response, () { next(); });
-        };
-        _layers ~= layer;
+        });
     }
 
     private void addRoute(string method, string path, Handler handler)
@@ -414,45 +405,42 @@ class Router
         _layers ~= layer;
     }
 
-    private static string normalizePrefix(string prefix)
-    {
-        if (prefix.length == 0)
-            return "/";
-        if (prefix[0] != '/')
-            prefix = "/" ~ prefix;
-        while (prefix.length > 1 && prefix[$ - 1] == '/')
-            prefix = prefix[0 .. $ - 1];
-        return prefix;
-    }
-
     private bool matchLayer(const ref Layer layer, Request request,
                             out LayerMatch match)
     {
-        match = LayerMatch.init;
-        if (layer.kind == LayerKind.error)
-            return false;
-
-        if (layer.kind == LayerKind.route)
+        final switch (layer.kind)
         {
-            if (layer.method.length != 0 && layer.method != request.method)
-            {
-                // Express falls back to GET handlers for HEAD requests.
-                if (!(request.method == "HEAD" && layer.method == "GET"))
+            case LayerKind.error:
+                return false;
+
+            case LayerKind.route:
+                if (layer.method.length != 0 && layer.method != request.method)
+                {
+                    // Express falls back to GET handlers for HEAD requests.
+                    if (!(request.method == "HEAD" && layer.method == "GET"))
+                        return false;
+                }
+                PathMatch path;
+                if (!layer.pattern.matches(request.rawPath, false, caseSensitive, path))
                     return false;
-            }
-            return layer.pattern.matches(request.rawPath, false, caseSensitive,
-                                         match.params, match.consumed);
+                match.params = path.params;
+                return true;
+
+            case LayerKind.middleware:
+                if (!layer.hasPrefix)
+                    return true;
+                PathMatch path;
+                if (!layer.pattern.matches(request.rawPath, true, caseSensitive, path))
+                    return false;
+
+                auto remainder = request.rawPath[path.consumedEnd .. $];
+                while (remainder.length > 1 && remainder[1] == '/')
+                    remainder = remainder[1 .. $];
+                match.params = path.params;
+                match.remainder = remainder.length ? remainder : "/";
+                match.consumedRaw = request.rawPath[0 .. path.consumedEnd];
+                return true;
         }
-
-        if (!layer.hasPrefix)
-            return true;
-
-        if (!layer.pattern.matches(request.rawPath, true, caseSensitive,
-                                   match.params, match.consumed))
-            return false;
-        match.remainder = remainderPath(request.rawPath, match.consumed);
-        match.consumedRaw = consumedPath(request.rawPath, match.consumed);
-        return true;
     }
 
     private void dispatchFrom(size_t start, ref DispatchState state)
@@ -485,7 +473,7 @@ class Router
             if (prefixAdjusted)
             {
                 request.baseUrl = savedBaseUrl ~ match.consumedRaw;
-                request.rawPath = match.remainder.length ? match.remainder : "/";
+                request.rawPath = match.remainder;
                 request.path = decodePath(request.rawPath);
                 request.url = request.rawPath ~
                     (request.queryString.length ? "?" ~ request.queryString : "");
@@ -531,12 +519,7 @@ class Router
                     dispatchFrom(i, state);
                     return;
                 }
-                if (!state.errorSet)
-                {
-                    state.errorSet = true;
-                    state.error = error;
-                    state.errorStart = i;
-                }
+                recordError(state, error, i);
                 throw error;
             }
 
@@ -549,12 +532,7 @@ class Router
             catch (Throwable error)
             {
                 restore();
-                if (!state.errorSet)
-                {
-                    state.errorSet = true;
-                    state.error = error;
-                    state.errorStart = i;
-                }
+                recordError(state, error, i);
                 throw error;
             }
 
@@ -569,7 +547,24 @@ class Router
         }
 
         if (!state.response._finished)
+        {
+            state.exited = true;
             state.done();
+        }
+    }
+
+    /// Remember the first error raised by this router's layers, and where
+    /// error handling should resume.
+    private static void recordError(ref DispatchState state, Throwable error,
+                                    size_t resumeAt)
+    {
+        // Once `done` ran, control belongs to the parent router; errors it
+        // raises must not reach this router's error handlers.
+        if (state.errorSet || state.exited)
+            return;
+        state.errorSet = true;
+        state.error = error;
+        state.errorStart = resumeAt;
     }
 
     private bool runErrorHandlers(ref DispatchState state, size_t start)
@@ -625,6 +620,8 @@ private struct DispatchState
     Request request;
     Response response;
     void delegate() done;
+    /// Set once `done` was called, i.e. control returned to the parent.
+    bool exited;
     bool errorSet;
     size_t errorStart;
     Throwable error;
