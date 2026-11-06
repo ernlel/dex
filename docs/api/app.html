@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#020617">
+    <title>App — API Reference — dex</title>
+    <meta name="description" content="API reference for the App class in dex.">
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header" data-header>
+        <div class="container nav-wrap">
+            <a class="brand" href="../index.html" aria-label="dex home">
+                <span class="brand-mark" aria-hidden="true">d</span>
+                <span class="brand-name">dex</span>
+            </a>
+
+            <button class="nav-toggle" type="button" aria-expanded="false"
+                    aria-controls="primary-nav" aria-label="Open navigation"
+                    data-nav-toggle>
+                <svg class="icon icon-menu" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16"/>
+                </svg>
+                <svg class="icon icon-close" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+            </button>
+
+            <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
+                <a href="../index.html#features">Features</a>
+                <a class="active" href="../starter/installing.html">Docs</a>
+                <a href="../index.html#quickstart">Quickstart</a>
+                <a href="../index.html#middleware">Middleware</a>
+                <a href="../index.html#examples">Examples</a>
+                <a class="nav-github" data-github href="https://github.com"
+                   target="_blank" rel="noopener">
+                    <svg class="icon" viewBox="0 0 16 16" fill="currentColor"
+                         aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container docs-wrap">
+        <aside class="docs-sidebar" aria-label="Documentation Navigation">
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Getting Started</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li>
+                    <li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li>
+                    <li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Guide</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
+                    <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">API Reference</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link active" href="app.html">App</a></li>
+                    <li><a class="docs-nav-link" href="request.html">Request (req)</a></li>
+                    <li><a class="docs-nav-link" href="response.html">Response (res)</a></li>
+                    <li><a class="docs-nav-link" href="router.html">Router</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="docs-content" id="content">
+            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="separator">/</span>
+                <span>API Reference</span>
+                <span class="separator">/</span>
+                <span aria-current="page">App</span>
+            </nav>
+
+            <header class="docs-header">
+                <h1 class="docs-title">App</h1>
+                <p class="docs-lead">
+                    The top-level application class inheriting from <code>Router</code> and managing the HTTP/1.1 lifecycle.
+                </p>
+            </header>
+
+            <h2>Properties &amp; Configuration</h2>
+            <ul>
+                <li><code>idleTimeout: Duration</code> — Keep-alive socket idle timeout (default: <code>60.seconds</code>).</li>
+                <li><code>maxBodySize: size_t</code> — Maximum accepted request body in bytes (default: 10 MiB).</li>
+                <li><code>maxHeaderSize: size_t</code> — Maximum accepted header bytes (default: 64 KiB).</li>
+                <li><code>maxConnections: size_t</code> — Max concurrent TCP connections; 0 means unlimited (default: 1024).</li>
+                <li><code>showStackTraces: bool</code> — Send exception stack traces to clients on 500 errors (default: false).</li>
+                <li><code>logErrors: bool</code> — Write unhandled 5xx errors to stderr (default: true).</li>
+                <li><code>caseSensitive: bool</code> — Enable case-sensitive route matching (default: false).</li>
+                <li><code>isListening: bool</code> — Whether the server is currently accepting connections.</li>
+                <li><code>port: ushort</code> — The bound TCP port (especially useful with ephemeral port <code>listen(0)</code>).</li>
+            </ul>
+
+            <h2>Methods</h2>
+
+            <h3>app.listen(port, host = "0.0.0.0", onReady = null)</h3>
+            <p>
+                Binds the HTTP server to the given port and blocks until the server closes. If <code>port == 0</code>, the OS assigns an ephemeral free port.
+            </p>
+
+            <h3>app.start(port, host = "0.0.0.0", onReady = null)</h3>
+            <p>
+                Starts accepting connections on a background accept thread without blocking the calling thread. Read the bound port from <code>app.port</code>.
+            </p>
+
+            <h3>app.close()</h3>
+            <p>
+                Stops accepting incoming connections and safely closes all active connections.
+            </p>
+
+            <h3>app.use([prefix], handler | middleware | router)</h3>
+            <p>
+                Registers middleware or mounts a sub-router, optionally under a URL prefix.
+            </p>
+
+            <!-- Pager -->
+            <nav class="docs-pager" aria-label="Docs pagination">
+                <a class="pager-btn pager-prev" href="../guide/error-handling.html">
+                    <span class="pager-label">&larr; Previous</span>
+                    <span class="pager-title">Error Handling</span>
+                </a>
+                <a class="pager-btn pager-next" href="request.html">
+                    <span class="pager-label">Next &rarr;</span>
+                    <span class="pager-title">Request (req)</span>
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="container footer-bottom">
+            <p>&copy; <span data-year>2026</span> Ernest. MIT Licensed.</p>
+        </div>
+    </footer>
+
+    <script src="../script.js"></script>
+</body>
+</html>

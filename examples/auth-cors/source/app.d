@@ -4,52 +4,6 @@ import std.process : environment;
 import std.string : icmp, indexOf, strip;
 import std.stdio : writeln;
 
-/// CORS configuration.
-struct CorsOptions
-{
-    string origin = "*";
-    string methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
-    string headers = "Content-Type, Authorization";
-    string maxAge = "86400";
-    bool credentials;
-}
-
-/// Add CORS headers and answer preflight requests.
-Middleware cors(CorsOptions options = CorsOptions.init)
-{
-    if (options.credentials && options.origin == "*")
-        throw new Exception("CORS credentials require an explicit origin");
-
-    return (Request request, Response response, Next next)
-    {
-        response.set("Access-Control-Allow-Origin", options.origin);
-        if (options.origin != "*")
-            response.append("Vary", "Origin");
-
-        response.set("Access-Control-Allow-Methods", options.methods);
-
-        const requestedHeaders =
-            request.get("access-control-request-headers");
-        response.set("Access-Control-Allow-Headers",
-                     requestedHeaders is null || requestedHeaders.length == 0
-                         ? options.headers : requestedHeaders);
-
-        if (options.credentials)
-            response.set("Access-Control-Allow-Credentials", "true");
-        if (options.maxAge.length)
-            response.set("Access-Control-Max-Age", options.maxAge);
-
-        if (request.method == "OPTIONS" &&
-            request.get("access-control-request-method") !is null)
-        {
-            response.status(204).end();
-            return;
-        }
-
-        next();
-    };
-}
-
 /// HTTP Basic authentication.
 ///
 /// Only use Basic auth behind TLS; credentials are only base64-encoded,

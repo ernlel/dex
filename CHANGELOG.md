@@ -25,9 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Adaptive body streaming**: `SocketReader.readExact` now reads into a dynamically growing buffer instead of allocating the full `Content-Length` immediately.
 
 ### Added
+- **`cors` & `securityHeaders` middleware**: Added standard built-in CORS configuration and Helmet-style HTTP security headers middleware (`x-content-type-options`, `x-frame-options`, `referrer-policy`, `x-xss-protection`, `cross-origin-opener-policy`, `cross-origin-resource-policy`, and HSTS).
+- **Chunked file streaming & byte-range support**: `Response.sendFile` and `serveStatic` now stream files in 64 KiB chunks with $O(1)$ memory usage, advertising `Accept-Ranges: bytes` and supporting `Range` requests (`206 Partial Content` / `416 Range Not Satisfiable`).
+- **Express-style starter documentation & guides**: Comprehensive multi-page documentation under `docs/` matching Express.js starters (`installing.html`, `hello-world.html`, `basic-routing.html`, `static-files.html`, `faq.html`), deep guides (`routing.html`, `middleware.html`, `error-handling.html`), and full API reference (`app.html`, `request.html`, `response.html`, `router.html`).
 - **`Response.onFinish`**: Added a public API to register lifecycle callbacks run when an HTTP response completes (used by `logger` middleware without accessing private fields).
 - **Dual IPv4/IPv6 support**: The HTTP server now uses `getAddress(host, port)` during binding to support hostnames and IPv6 addresses.
-- **Regression test suite**: Added tests covering fragmented HTTP headers, pipelined requests, large bodies (200 KiB), sub-router error isolation, lazy body error propagation, and header injection prevention.
+- **Regression test suite**: Added tests covering fragmented HTTP headers, pipelined requests, large bodies (200 KiB), sub-router error isolation, lazy body error propagation, header injection prevention, chunked range requests, CORS preflights, and security headers.
 
 ---
 

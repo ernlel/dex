@@ -842,3 +842,47 @@ unittest
     assert(response.status == 416);
     assert(response.headers["content-range"] == "bytes */36");
 }
+
+// Built-in cors and securityHeaders middleware.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+
+    CorsOptions corsOpt;
+    corsOpt.origin = "https://example.com";
+    corsOpt.credentials = true;
+
+    SecurityOptions secOpt;
+    secOpt.strictTransportSecurity = "max-age=31536000";
+
+    app.use(cors(corsOpt));
+    app.use(securityHeaders(secOpt));
+
+    app.get("/api/data", (req, res) { res.json(["ok": true]); });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // Normal GET: should receive CORS headers and Security headers
+    connection.send("GET", "/api/data");
+    auto response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["access-control-allow-origin"] == "https://example.com");
+    assert(response.headers["access-control-allow-credentials"] == "true");
+    assert(response.headers["vary"] == "Origin");
+    assert(response.headers["x-content-type-options"] == "nosniff");
+    assert(response.headers["x-frame-options"] == "SAMEORIGIN");
+    assert(response.headers["strict-transport-security"] == "max-age=31536000");
+
+    // Preflight OPTIONS request
+    connection.send("OPTIONS", "/api/data", null, null,
+                    "Access-Control-Request-Method: POST\r\n" ~
+                    "Access-Control-Request-Headers: Authorization\r\n");
+    response = connection.read();
+    assert(response.status == 204);
+    assert(response.headers["access-control-allow-origin"] == "https://example.com");
+    assert(response.headers["access-control-allow-methods"] == "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    assert(response.headers["access-control-allow-headers"] == "Authorization");
+}

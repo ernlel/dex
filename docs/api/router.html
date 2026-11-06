@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#020617">
+    <title>Router — API Reference — dex</title>
+    <meta name="description" content="API reference for the Router class in dex.">
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header" data-header>
+        <div class="container nav-wrap">
+            <a class="brand" href="../index.html" aria-label="dex home">
+                <span class="brand-mark" aria-hidden="true">d</span>
+                <span class="brand-name">dex</span>
+            </a>
+
+            <button class="nav-toggle" type="button" aria-expanded="false"
+                    aria-controls="primary-nav" aria-label="Open navigation"
+                    data-nav-toggle>
+                <svg class="icon icon-menu" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16"/>
+                </svg>
+                <svg class="icon icon-close" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+            </button>
+
+            <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
+                <a href="../index.html#features">Features</a>
+                <a class="active" href="../starter/installing.html">Docs</a>
+                <a href="../index.html#quickstart">Quickstart</a>
+                <a href="../index.html#middleware">Middleware</a>
+                <a href="../index.html#examples">Examples</a>
+                <a class="nav-github" data-github href="https://github.com"
+                   target="_blank" rel="noopener">
+                    <svg class="icon" viewBox="0 0 16 16" fill="currentColor"
+                         aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container docs-wrap">
+        <aside class="docs-sidebar" aria-label="Documentation Navigation">
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Getting Started</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li>
+                    <li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li>
+                    <li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Guide</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
+                    <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">API Reference</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="app.html">App</a></li>
+                    <li><a class="docs-nav-link" href="request.html">Request (req)</a></li>
+                    <li><a class="docs-nav-link" href="response.html">Response (res)</a></li>
+                    <li><a class="docs-nav-link active" href="router.html">Router</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="docs-content" id="content">
+            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="separator">/</span>
+                <span>API Reference</span>
+                <span class="separator">/</span>
+                <span aria-current="page">Router</span>
+            </nav>
+
+            <h1>Router</h1>
+            <p class="lead">
+                A <code>Router</code> instance is a complete middleware and routing system; for this reason, it is often referred to as a "mini-app".
+            </p>
+
+            <p>
+                Every <code>dex</code> application (<code>App</code>) inherits from <code>Router</code>. You can also instantiate isolated <code>Router</code> instances and mount them on paths using <code>app.use("/prefix", router)</code>.
+            </p>
+
+            <h2>Instantiation</h2>
+            <pre><code>import dex;
+
+auto router = new Router();</code></pre>
+
+            <h2>Properties</h2>
+
+            <h3>router.caseSensitive</h3>
+            <p>
+                Enables case-sensitive route matching. Defaults to <code>false</code> (meaning <code>/Users</code> matches <code>/users</code>).
+            </p>
+            <pre><code>router.caseSensitive = true;</code></pre>
+
+            <h2>Methods</h2>
+
+            <h3>router.use([path], [middleware...])</h3>
+            <p>
+                Mounts middleware or a sub-router on this router. If <code>path</code> is specified, the middleware only runs for paths matching that prefix.
+            </p>
+            <pre><code>// Runs on every request passing through this router
+router.use((req, res, next) {
+    // perform check or authentication
+    next();
+});
+
+// Runs only under /api
+router.use("/api", (req, res, next) {
+    next();
+});</code></pre>
+
+            <h3>router.use(ErrorHandler)</h3>
+            <p>
+                Registers an error-handling middleware delegate with signature <code>void delegate(Throwable error, Request req, Response res, Next next)</code>.
+            </p>
+            <pre><code>router.use((err, req, res, next) {
+    res.status(500).send("Router Error: " ~ err.msg);
+});</code></pre>
+
+            <h3>router.use([path], Router)</h3>
+            <p>
+                Mounts a sub-router. When requests match <code>path</code>, <code>req.baseUrl</code> is updated to include the prefix and <code>req.path</code> is adjusted to the remainder of the path.
+            </p>
+            <pre><code>auto api = new Router();
+auto v1 = new Router();
+
+v1.get("/users", (req, res) => res.json(["Alice", "Bob"]));
+api.use("/v1", v1);
+app.use("/api", api);
+// Matches GET /api/v1/users</code></pre>
+
+            <h3>router.METHOD(path, handler | middleware)</h3>
+            <p>
+                Registers route handlers for specific HTTP methods. Supported methods include:
+            </p>
+            <ul>
+                <li><code>router.get(path, ...)</code> (also responds to <code>HEAD</code> requests)</li>
+                <li><code>router.post(path, ...)</code></li>
+                <li><code>router.put(path, ...)</code></li>
+                <li><code>router.delete(path, ...)</code></li>
+                <li><code>router.patch(path, ...)</code></li>
+                <li><code>router.head(path, ...)</code></li>
+                <li><code>router.options(path, ...)</code></li>
+                <li><code>router.connect(path, ...)</code></li>
+                <li><code>router.trace(path, ...)</code></li>
+            </ul>
+
+            <pre><code>router.get("/items", (req, res) {
+    res.json(items);
+});
+
+router.post("/items", (req, res) {
+    // create item
+    res.status(201).json(created);
+});</code></pre>
+
+            <h3>router.all(path, handler | middleware)</h3>
+            <p>
+                Matches any HTTP method for the given path.
+            </p>
+            <pre><code>router.all("/secret", (req, res, next) {
+    // runs for GET, POST, PUT, DELETE, etc.
+    next();
+});</code></pre>
+
+            <h3>router.route(method, path, handler | middleware)</h3>
+            <p>
+                Registers a route handler for an arbitrary custom or extended HTTP verb (e.g. <code>SEARCH</code>, <code>PURGE</code>, <code>LINK</code>).
+            </p>
+            <pre><code>router.route("PURGE", "/cache", (req, res) {
+    clearCache();
+    res.send("Cache purged");
+});</code></pre>
+
+            <h2>Modular Architecture Example</h2>
+            <p>
+                Separate your application into domain-driven modules:
+            </p>
+
+            <pre><code>// routes/users.d
+module routes.users;
+
+import dex;
+
+Router usersRouter()
+{
+    auto r = new Router();
+
+    r.get("/", (req, res) => res.json(allUsers()));
+    r.get("/:id", (req, res) {
+        auto user = findUser(req.param("id"));
+        if (!user.found)
+            throw new HttpError(404, "User not found");
+        res.json(user);
+    });
+
+    return r;
+}
+
+// app.d
+import dex;
+import routes.users;
+
+void main()
+{
+    auto app = dex.app();
+    app.use("/users", usersRouter());
+    app.listen(3000);
+}</code></pre>
+
+            <!-- Pager -->
+            <nav class="docs-pager" aria-label="Docs pagination">
+                <a class="pager-btn pager-prev" href="response.html">
+                    <span class="pager-label">&larr; Previous</span>
+                    <span class="pager-title">Response (res)</span>
+                </a>
+                <a class="pager-btn pager-next" href="../starter/installing.html">
+                    <span class="pager-label">Next &rarr;</span>
+                    <span class="pager-title">Getting Started: Installing</span>
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="container footer-bottom">
+            <p>&copy; <span data-year>2026</span> Ernest. MIT Licensed.</p>
+        </div>
+    </footer>
+
+    <script src="../script.js"></script>
+</body>
+</html>

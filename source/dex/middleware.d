@@ -102,8 +102,6 @@ Middleware serveStatic(string root, StaticOptions options = StaticOptions.init)
         }
 
         bool found;
-        ubyte[] data;
-        SysTime lastModified;
         try
         {
             if (isDir(filePath))
@@ -116,8 +114,6 @@ Middleware serveStatic(string root, StaticOptions options = StaticOptions.init)
                 if (realFile == realRoot ||
                     realFile.startsWith(withTrailingSeparator(realRoot)))
                 {
-                    data = cast(ubyte[]) read(filePath);
-                    lastModified = timeLastModified(filePath);
                     found = true;
                 }
             }
@@ -133,15 +129,101 @@ Middleware serveStatic(string root, StaticOptions options = StaticOptions.init)
             return;
         }
 
-        if (!response.has("content-type"))
-        {
-            const ext = extension(filePath);
-            response.type(ext.length ? ext[1 .. $] : "");
-        }
         if (!response.has("cache-control"))
             response.set("cache-control", options.cacheControl);
-        response.set("last-modified", httpDate(lastModified));
-        response.sendBytes(data);
+        response.sendFile(filePath);
+    };
+}
+
+/// CORS configuration options.
+struct CorsOptions
+{
+    /// Allowed origin or `"*"` (default).
+    string origin = "*";
+    /// Allowed HTTP methods.
+    string methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+    /// Allowed HTTP headers.
+    string headers = "Content-Type, Authorization";
+    /// Access-Control-Max-Age header value in seconds.
+    string maxAge = "86400";
+    /// Whether credentials (cookies, HTTP auth) are allowed.
+    bool credentials;
+}
+
+/// Add CORS headers and automatically handle preflight `OPTIONS` requests.
+Middleware cors(CorsOptions options = CorsOptions.init)
+{
+    if (options.credentials && options.origin == "*")
+        throw new Exception("CORS credentials require an explicit origin");
+
+    return (Request request, Response response, Next next)
+    {
+        response.set("Access-Control-Allow-Origin", options.origin);
+        if (options.origin != "*")
+            response.append("Vary", "Origin");
+
+        response.set("Access-Control-Allow-Methods", options.methods);
+
+        const requestedHeaders = request.get("access-control-request-headers");
+        response.set("Access-Control-Allow-Headers",
+                     requestedHeaders !is null && requestedHeaders.length != 0
+                         ? requestedHeaders : options.headers);
+
+        if (options.credentials)
+            response.set("Access-Control-Allow-Credentials", "true");
+        if (options.maxAge.length)
+            response.set("Access-Control-Max-Age", options.maxAge);
+
+        if (request.method == "OPTIONS" &&
+            request.get("access-control-request-method") !is null)
+        {
+            response.status(204).end();
+            return;
+        }
+
+        next();
+    };
+}
+
+/// Security headers configuration options.
+struct SecurityOptions
+{
+    /// `X-Content-Type-Options` value. Defaults to `"nosniff"`.
+    string xContentTypeOptions = "nosniff";
+    /// `X-Frame-Options` value. Defaults to `"SAMEORIGIN"`.
+    string xFrameOptions = "SAMEORIGIN";
+    /// `Referrer-Policy` value. Defaults to `"strict-origin-when-cross-origin"`.
+    string referrerPolicy = "strict-origin-when-cross-origin";
+    /// `X-XSS-Protection` value. Defaults to `"0"`.
+    string xXssProtection = "0";
+    /// `Cross-Origin-Opener-Policy` value. Defaults to `"same-origin"`.
+    string crossOriginOpenerPolicy = "same-origin";
+    /// `Cross-Origin-Resource-Policy` value. Defaults to `"same-origin"`.
+    string crossOriginResourcePolicy = "same-origin";
+    /// Optional `Strict-Transport-Security` (HSTS) value.
+    string strictTransportSecurity;
+}
+
+/// Standard security headers middleware with Helmet-style defaults.
+Middleware securityHeaders(SecurityOptions options = SecurityOptions.init)
+{
+    return (Request request, Response response, Next next)
+    {
+        if (options.xContentTypeOptions.length && !response.has("x-content-type-options"))
+            response.set("x-content-type-options", options.xContentTypeOptions);
+        if (options.xFrameOptions.length && !response.has("x-frame-options"))
+            response.set("x-frame-options", options.xFrameOptions);
+        if (options.referrerPolicy.length && !response.has("referrer-policy"))
+            response.set("referrer-policy", options.referrerPolicy);
+        if (options.xXssProtection.length && !response.has("x-xss-protection"))
+            response.set("x-xss-protection", options.xXssProtection);
+        if (options.crossOriginOpenerPolicy.length && !response.has("cross-origin-opener-policy"))
+            response.set("cross-origin-opener-policy", options.crossOriginOpenerPolicy);
+        if (options.crossOriginResourcePolicy.length && !response.has("cross-origin-resource-policy"))
+            response.set("cross-origin-resource-policy", options.crossOriginResourcePolicy);
+        if (options.strictTransportSecurity.length && !response.has("strict-transport-security"))
+            response.set("strict-transport-security", options.strictTransportSecurity);
+        next();
     };
 }
 

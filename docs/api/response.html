@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#020617">
+    <title>Response — API Reference — dex</title>
+    <meta name="description" content="API reference for the Response class in dex.">
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header" data-header>
+        <div class="container nav-wrap">
+            <a class="brand" href="../index.html" aria-label="dex home">
+                <span class="brand-mark" aria-hidden="true">d</span>
+                <span class="brand-name">dex</span>
+            </a>
+
+            <button class="nav-toggle" type="button" aria-expanded="false"
+                    aria-controls="primary-nav" aria-label="Open navigation"
+                    data-nav-toggle>
+                <svg class="icon icon-menu" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16"/>
+                </svg>
+                <svg class="icon icon-close" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+            </button>
+
+            <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
+                <a href="../index.html#features">Features</a>
+                <a class="active" href="../starter/installing.html">Docs</a>
+                <a href="../index.html#quickstart">Quickstart</a>
+                <a href="../index.html#middleware">Middleware</a>
+                <a href="../index.html#examples">Examples</a>
+                <a class="nav-github" data-github href="https://github.com"
+                   target="_blank" rel="noopener">
+                    <svg class="icon" viewBox="0 0 16 16" fill="currentColor"
+                         aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container docs-wrap">
+        <aside class="docs-sidebar" aria-label="Documentation Navigation">
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Getting Started</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li>
+                    <li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li>
+                    <li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Guide</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
+                    <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">API Reference</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="app.html">App</a></li>
+                    <li><a class="docs-nav-link" href="request.html">Request (req)</a></li>
+                    <li><a class="docs-nav-link active" href="response.html">Response (res)</a></li>
+                    <li><a class="docs-nav-link" href="router.html">Router</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="docs-content" id="content">
+            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="separator">/</span>
+                <span>API Reference</span>
+                <span class="separator">/</span>
+                <span aria-current="page">Response (res)</span>
+            </nav>
+
+            <h1>Response (res)</h1>
+            <p class="lead">
+                The <code>Response</code> object represents the HTTP response that an HTTP server sends when it receives an HTTP request.
+            </p>
+
+            <p>
+                In handlers, the response object is customarily referred to as <code>res</code> (or <code>response</code>). Most methods on <code>Response</code> return <code>this</code> to allow method chaining.
+            </p>
+
+            <h2>Properties</h2>
+
+            <h3>res.statusCode</h3>
+            <p>
+                The integer HTTP status code that will be sent to the client (e.g. <code>200</code>, <code>404</code>, <code>500</code>). Defaults to <code>200</code>.
+            </p>
+
+            <h3>res.headersSent / res.finished</h3>
+            <p>
+                Boolean property that indicates if the response has been sent/finished. Once true, subsequent header or body writes are ignored.
+            </p>
+
+            <h2>Methods</h2>
+
+            <h3>res.status(code)</h3>
+            <p>
+                Sets the HTTP status code. Returns <code>this</code> for chaining.
+            </p>
+            <pre><code>res.status(404).send("Page Not Found");
+res.status(201).json(createdRecord);</code></pre>
+
+            <h3>res.set(name, value) / res.header(name, value)</h3>
+            <p>
+                Sets an HTTP header field to the specified value. Header names are case-insensitive. Values are checked to prevent CRLF injection.
+            </p>
+            <pre><code>res.set("X-Powered-By", "dex")
+   .set("Cache-Control", "no-cache");</code></pre>
+
+            <h3>res.append(name, value)</h3>
+            <p>
+                Appends a value to an existing header. If the header does not yet exist, it creates it. For regular headers, values are separated by a comma and space. For <code>Set-Cookie</code>, multiple headers are emitted.
+            </p>
+            <pre><code>res.append("Warning", "199 Miscellaneous warning");</code></pre>
+
+            <h3>res.get(name)</h3>
+            <p>
+                Returns the value of the HTTP response header specified by <code>name</code> (case-insensitive), or <code>null</code> if not set.
+            </p>
+
+            <h3>res.has(name)</h3>
+            <p>
+                Returns <code>true</code> if the specified response header has been set, <code>false</code> otherwise.
+            </p>
+
+            <h3>res.type(contentType) / res.contentType(contentType)</h3>
+            <p>
+                Sets the <code>Content-Type</code> HTTP header to the MIME type looked up by extension (e.g. <code>"json"</code>, <code>"html"</code>, <code>"png"</code>, <code>"pdf"</code>) or a full MIME type string.
+            </p>
+            <pre><code>res.type("json");    // Content-Type: application/json; charset=utf-8
+res.type("html");    // Content-Type: text/html; charset=utf-8
+res.type("png");     // Content-Type: image/png</code></pre>
+
+            <h3>res.send(body)</h3>
+            <p>
+                Sends the HTTP response with a text/HTML body and ends the response. If no <code>Content-Type</code> has been set, it defaults to <code>text/html; charset=utf-8</code>.
+            </p>
+            <pre><code>res.send("Hello World");
+res.type("text/plain").send("Raw plaintext content");</code></pre>
+
+            <h3>res.sendBytes(bytes)</h3>
+            <p>
+                Sends raw binary data (<code>const(ubyte)[]</code>) and ends the response. Defaults to <code>application/octet-stream</code> if no <code>Content-Type</code> has been set.
+            </p>
+
+            <h3>res.json(value) / res.sendJson(value)</h3>
+            <p>
+                Serializes any D value (struct, class, array, associative array, primitive, or <code>JSONValue</code>) to a JSON string, sets <code>Content-Type: application/json; charset=utf-8</code>, and ends the response.
+            </p>
+            <pre><code>struct User { string name; int id; }
+res.json(User("Alice", 42));</code></pre>
+
+            <h3>res.sendFile(filePath)</h3>
+            <p>
+                Streams a file from the filesystem to the client in 64 KiB chunks. Automatically detects <code>Content-Type</code>, sets <code>Last-Modified</code>, announces <code>Accept-Ranges: bytes</code>, and handles <code>Range</code> requests (<code>206 Partial Content</code> / <code>416 Range Not Satisfiable</code>).
+            </p>
+            <pre><code>res.sendFile("./public/downloads/manual.pdf");</code></pre>
+
+            <h3>res.sendStatus(code)</h3>
+            <p>
+                Sets the response HTTP status code to <code>code</code> and sends the text reason phrase as the response body.
+            </p>
+            <pre><code>res.sendStatus(404); // Sends "404 Not Found" with status 404
+res.sendStatus(204); // Sends "204 No Content" with status 204</code></pre>
+
+            <h3>res.redirect([code], location)</h3>
+            <p>
+                Performs an HTTP redirect to <code>location</code>. The default status code is <code>302 Found</code>.
+            </p>
+            <pre><code>res.redirect("/login");
+res.redirect(301, "https://example.com/new-url");</code></pre>
+
+            <h3>res.cookie(name, value, [options])</h3>
+            <p>
+                Sets a cookie in the <code>Set-Cookie</code> header. Values are percent-encoded for safe transport.
+            </p>
+            <pre><code>import core.time : dur;
+import dex : CookieOptions, SameSite;
+
+res.cookie("session_id", "xyz123", CookieOptions(
+    path: "/",
+    httpOnly: true,
+    secure: true,
+    sameSite: SameSite.strict,
+    maxAge: 7.dur!"days"
+));</code></pre>
+
+            <h3>res.clearCookie(name, [options])</h3>
+            <p>
+                Expires a cookie immediately by setting its <code>Expires</code> to the Unix epoch and <code>Max-Age=0</code>.
+            </p>
+            <pre><code>res.clearCookie("session_id", CookieOptions(path: "/"));</code></pre>
+
+            <h3>res.closeConnection()</h3>
+            <p>
+                Instructs the server to add <code>Connection: close</code> and shut down the underlying TCP connection immediately after sending this response, even on HTTP/1.1 keep-alive connections.
+            </p>
+
+            <h3>res.onFinish(callback)</h3>
+            <p>
+                Registers a delegate <code>void delegate(Response)</code> that executes as soon as the response is ended. Useful for request logging, metrics collection, and resource cleanup.
+            </p>
+            <pre><code>res.onFinish((r) {
+    writeln("Finished status: ", r.statusCode);
+});</code></pre>
+
+            <h3>res.bodyBytes() / res.bodyString()</h3>
+            <p>
+                Utility inspectors to access the response body as bytes or string. If <code>sendFile</code> was called, <code>bodyBytes()</code> safely reads the file contents into memory.
+            </p>
+
+            <!-- Pager -->
+            <nav class="docs-pager" aria-label="Docs pagination">
+                <a class="pager-btn pager-prev" href="request.html">
+                    <span class="pager-label">&larr; Previous</span>
+                    <span class="pager-title">Request (req)</span>
+                </a>
+                <a class="pager-btn pager-next" href="router.html">
+                    <span class="pager-label">Next &rarr;</span>
+                    <span class="pager-title">Router</span>
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="container footer-bottom">
+            <p>&copy; <span data-year>2026</span> Ernest. MIT Licensed.</p>
+        </div>
+    </footer>
+
+    <script src="../script.js"></script>
+</body>
+</html>

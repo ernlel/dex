@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#020617">
+    <title>FAQ &amp; Recipes — Starter Guide — dex</title>
+    <meta name="description" content="Frequently asked questions and practical solutions for common web development tasks in dex.">
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header" data-header>
+        <div class="container nav-wrap">
+            <a class="brand" href="../index.html" aria-label="dex home">
+                <span class="brand-mark" aria-hidden="true">d</span>
+                <span class="brand-name">dex</span>
+            </a>
+
+            <button class="nav-toggle" type="button" aria-expanded="false"
+                    aria-controls="primary-nav" aria-label="Open navigation"
+                    data-nav-toggle>
+                <svg class="icon icon-menu" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16"/>
+                </svg>
+                <svg class="icon icon-close" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+            </button>
+
+            <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
+                <a href="../index.html#features">Features</a>
+                <a class="active" href="installing.html">Docs</a>
+                <a href="../index.html#quickstart">Quickstart</a>
+                <a href="../index.html#middleware">Middleware</a>
+                <a href="../index.html#examples">Examples</a>
+                <a class="nav-github" data-github href="https://github.com"
+                   target="_blank" rel="noopener">
+                    <svg class="icon" viewBox="0 0 16 16" fill="currentColor"
+                         aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container docs-wrap">
+        <aside class="docs-sidebar" aria-label="Documentation Navigation">
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Getting Started</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="installing.html">Installing</a></li>
+                    <li><a class="docs-nav-link" href="hello-world.html">Hello World</a></li>
+                    <li><a class="docs-nav-link" href="basic-routing.html">Basic Routing</a></li>
+                    <li><a class="docs-nav-link" href="static-files.html">Static Files</a></li>
+                    <li><a class="docs-nav-link active" href="faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Guide</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
+                    <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">API Reference</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../api/app.html">App</a></li>
+                    <li><a class="docs-nav-link" href="../api/request.html">Request (req)</a></li>
+                    <li><a class="docs-nav-link" href="../api/response.html">Response (res)</a></li>
+                    <li><a class="docs-nav-link" href="../api/router.html">Router</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="docs-content" id="content">
+            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="separator">/</span>
+                <span>Getting Started</span>
+                <span class="separator">/</span>
+                <span aria-current="page">FAQ</span>
+            </nav>
+
+            <header class="docs-header">
+                <h1 class="docs-title">Frequently Asked Questions</h1>
+                <p class="docs-lead">
+                    Quick answers and best practices for common tasks in dex.
+                </p>
+            </header>
+
+            <h2>How do I handle 404 responses?</h2>
+            <p>
+                In <code>dex</code>, a 404 response is not the result of an error; it simply indicates that none of your registered route handlers responded to the request. You can define a catch-all handler as the very last middleware:
+            </p>
+
+            <div class="code-frame">
+                <pre class="code"><code><span class="tok-comment">// Defined at the bottom after all other routes</span>
+app.<span class="tok-fn">use</span>((req, res) {
+    res.<span class="tok-fn">status</span>(<span class="tok-num">404</span>).<span class="tok-fn">type</span>(<span class="tok-str">"text"</span>).<span class="tok-fn">send</span>(<span class="tok-str">"Sorry, can’t find that!"</span>);
+});</code></pre>
+            </div>
+
+            <h2>How do I set up custom error handling?</h2>
+            <p>
+                Define an error-handling middleware function that takes four parameters: <code>(Throwable error, Request req, Response res, Next next)</code>:
+            </p>
+
+            <div class="code-frame">
+                <pre class="code"><code>app.<span class="tok-fn">use</span>((Throwable error, Request req, Response res, Next next) {
+    <span class="tok-kw">if</span> (<span class="tok-kw">auto</span> httpError = <span class="tok-kw">cast</span>(<span class="tok-type">HttpError</span>) error) {
+        res.<span class="tok-fn">status</span>(httpError.status).<span class="tok-fn">json</span>([<span class="tok-str">"error"</span>: httpError.msg]);
+    } <span class="tok-kw">else</span> {
+        res.<span class="tok-fn">status</span>(<span class="tok-num">500</span>).<span class="tok-fn">json</span>([<span class="tok-str">"error"</span>: <span class="tok-str">"Internal Server Error"</span>]);
+    }
+});</code></pre>
+            </div>
+
+            <h2>How do I read JSON POST bodies?</h2>
+            <p>
+                Request bodies with <code>application/json</code> are parsed lazily on first access into <code>req.body</code>. You can extract typed fields directly using <code>req.bodyValue!T("field")</code>:
+            </p>
+
+            <div class="code-frame">
+                <pre class="code"><code>app.<span class="tok-fn">post</span>(<span class="tok-str">"/users"</span>, (req, res) {
+    <span class="tok-kw">const</span> name = req.<span class="tok-fn">bodyValue</span>!<span class="tok-type">string</span>(<span class="tok-str">"name"</span>);
+    <span class="tok-kw">const</span> age  = req.<span class="tok-fn">bodyValue</span>!<span class="tok-type">int</span>(<span class="tok-str">"age"</span>);
+    res.<span class="tok-fn">status</span>(<span class="tok-num">201</span>).<span class="tok-fn">json</span>([<span class="tok-str">"created"</span>: name]);
+});</code></pre>
+            </div>
+
+            <h2>How do I enable CORS?</h2>
+            <p>
+                Use the built-in <code>cors()</code> middleware:
+            </p>
+
+            <div class="code-frame">
+                <pre class="code"><code><span class="tok-comment">// Allow all origins</span>
+app.<span class="tok-fn">use</span>(<span class="tok-fn">cors</span>());
+
+<span class="tok-comment">// Or configure specific origins and credentials</span>
+<span class="tok-type">CorsOptions</span> corsOptions;
+corsOptions.origin = <span class="tok-str">"https://myfrontend.com"</span>;
+corsOptions.credentials = <span class="tok-kw">true</span>;
+app.<span class="tok-fn">use</span>(<span class="tok-fn">cors</span>(corsOptions));</code></pre>
+            </div>
+
+            <h2>How do I add security headers (Helmet-style)?</h2>
+            <p>
+                Use the built-in <code>securityHeaders()</code> middleware to set <code>X-Content-Type-Options: nosniff</code>, <code>X-Frame-Options: SAMEORIGIN</code>, <code>Referrer-Policy</code>, and more:
+            </p>
+
+            <div class="code-frame">
+                <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-fn">securityHeaders</span>());</code></pre>
+            </div>
+
+            <!-- Pager -->
+            <nav class="docs-pager" aria-label="Docs pagination">
+                <a class="pager-btn pager-prev" href="static-files.html">
+                    <span class="pager-label">&larr; Previous</span>
+                    <span class="pager-title">Static Files</span>
+                </a>
+                <a class="pager-btn pager-next" href="../guide/routing.html">
+                    <span class="pager-label">Next &rarr;</span>
+                    <span class="pager-title">Routing in Depth</span>
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="container footer-bottom">
+            <p>&copy; <span data-year>2026</span> Ernest. MIT Licensed.</p>
+        </div>
+    </footer>
+
+    <script src="../script.js"></script>
+</body>
+</html>

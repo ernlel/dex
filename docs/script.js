@@ -3,7 +3,7 @@
 
     // Auto-detection works on GitHub Pages project/user sites. Set this
     // explicitly when serving from a custom domain.
-    const CONFIGURED_REPO_URL = "";
+    const CONFIGURED_REPO_URL = "https://github.com/ernlel/dex";
 
     const doc = document;
     const root = doc.documentElement;
