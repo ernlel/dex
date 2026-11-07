@@ -1,0 +1,11 @@
+{
+    "name": "views",
+    "description": "Server-side HTML rendering example using dex's built-in Handlebars/Mustache template engine",
+    "targetType": "executable",
+    "targetName": "views-example",
+    "dependencies": {
+        "dex": {
+            "path": "../.."
+        }
+    }
+}

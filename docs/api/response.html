@@ -76,6 +76,7 @@
                 <ul class="docs-nav-list">
                     <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
                     <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li>
                     <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
                 </ul>
             </div>
@@ -179,6 +180,16 @@ res.type("text/plain").send("Raw plaintext content");</code></pre>
             </p>
             <pre><code>struct User { string name; int id; }
 res.json(User("Alice", 42));</code></pre>
+
+            <h3>res.render(viewName, [locals])</h3>
+            <p>
+                Renders a view template using the application's view engine, sets <code>Content-Type: text/html; charset=utf-8</code>, and ends the response. <code>locals</code> can be any D struct, class, associative array, or <code>JSONValue</code>. See the <a href="../guide/templates.html">Template Engine Guide</a> for details.
+            </p>
+            <pre><code>struct PageData { string title; string user; }
+res.render("index", PageData("Home", "Ernestas"));
+
+// Without locals:
+res.render("about");</code></pre>
 
             <h3>res.sendFile(filePath)</h3>
             <p>

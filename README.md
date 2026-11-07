@@ -51,6 +51,9 @@ void main()
   associative arrays, enums, and `Nullable`.
 - HTTP/1.1 keep-alive, chunked request bodies, `Expect: 100-continue`,
   request size limits, and a capped thread-per-connection server.
+- Built-in Handlebars/Mustache template engine (`res.render`) with variables,
+  conditionals (`#if`, `#unless`), loops (`#each`), partials (`{{> partial}}`),
+  and automatic XSS escaping.
 - No third-party packages: only Phobos and druntime.
 
 ## Install
@@ -360,12 +363,14 @@ TLS is not implemented; terminate TLS at a reverse proxy.
 - `examples/todos` — thread-safe in-memory JSON CRUD API with sub-routers and mutex locking.
 - `examples/api-server` — production-ready REST microservice featuring Bearer token auth, modular sub-routers, query filtering, request validation, CORS, security headers, and structured JSON error responses.
 - `examples/file-server` — static asset and chunked media streaming server with custom cache headers, file metadata API, and HTTP Range request (`206 Partial Content`) support.
+- `examples/views` — server-side HTML rendering using dex's built-in Handlebars/Mustache template engine, partials, and typed D structs.
 
 ```sh
 cd examples/hello && dub run
 cd examples/todos && dub run
 cd examples/api-server && dub run
 cd examples/file-server && dub run
+cd examples/views && dub run
 ```
 
 ### Testing `examples/api-server`:
@@ -406,6 +411,19 @@ curl -i -H "Range: bytes=0-20" http://localhost:3000/media.txt
 
 # Download file as attachment
 curl -i http://localhost:3000/download/sample.txt
+```
+
+### Testing `examples/views`:
+
+```sh
+# Render homepage template with typed D struct locals
+curl -i http://localhost:3000/
+
+# Render about page
+curl -i http://localhost:3000/about
+
+# Render projects page
+curl -i http://localhost:3000/projects
 ```
 
 ## Landing page

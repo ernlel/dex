@@ -76,6 +76,7 @@
                 <ul class="docs-nav-list">
                     <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
                     <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li>
                     <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
                 </ul>
             </div>
@@ -116,6 +117,9 @@
                 <li><code>showStackTraces: bool</code> — Send exception stack traces to clients on 500 errors (default: false).</li>
                 <li><code>logErrors: bool</code> — Write unhandled 5xx errors to stderr (default: true).</li>
                 <li><code>caseSensitive: bool</code> — Enable case-sensitive route matching (default: false).</li>
+                <li><code>viewsDir: string</code> — Directory where templates reside (default: <code>"./views"</code>).</li>
+                <li><code>defaultViewEngine: string</code> — Default view extension (default: <code>"html"</code>).</li>
+                <li><code>cacheViews: bool</code> — Enable in-memory compiled template caching (default: <code>false</code>).</li>
                 <li><code>isListening: bool</code> — Whether the server is currently accepting connections.</li>
                 <li><code>port: ushort</code> — The bound TCP port (especially useful with ephemeral port <code>listen(0)</code>).</li>
             </ul>
@@ -140,6 +144,26 @@
             <h3>app.use([prefix], handler | middleware | router)</h3>
             <p>
                 Registers middleware or mounts a sub-router, optionally under a URL prefix.
+            </p>
+
+            <h3>app.setViews(directory)</h3>
+            <p>
+                Sets the filesystem directory where view templates are located. Defaults to <code>"./views"</code>. Returns <code>this</code>.
+            </p>
+
+            <h3>app.viewEngine(extension)</h3>
+            <p>
+                Sets the default view file extension (e.g. <code>"html"</code>) used when <code>res.render()</code> is called without a file extension. Returns <code>this</code>.
+            </p>
+
+            <h3>app.engine(extension, renderer)</h3>
+            <p>
+                Registers a custom template engine delegate for the specified file extension with signature <code>string delegate(string templatePath, JSONValue locals)</code>. Returns <code>this</code>.
+            </p>
+
+            <h3>app.renderView(viewName, locals)</h3>
+            <p>
+                Compiles and renders a view template file by name with the given JSON locals. Used internally by <code>res.render()</code>.
             </p>
 
             <!-- Pager -->

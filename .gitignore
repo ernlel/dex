@@ -11,3 +11,4 @@ dub.selections.json
 /examples/todos/todos
 /examples/api-server/api-server
 /examples/file-server/file-server
+/examples/views/views-example

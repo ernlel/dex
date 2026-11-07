@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#020617">
+    <title>Template Engine &amp; Views — dex</title>
+    <meta name="description" content="Guide to using the built-in Handlebars/Mustache template engine and res.render() in dex.">
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header" data-header>
+        <div class="container nav-wrap">
+            <a class="brand" href="../index.html" aria-label="dex home">
+                <span class="brand-mark" aria-hidden="true">d</span>
+                <span class="brand-name">dex</span>
+            </a>
+
+            <button class="nav-toggle" type="button" aria-expanded="false"
+                    aria-controls="primary-nav" aria-label="Open navigation"
+                    data-nav-toggle>
+                <svg class="icon icon-menu" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16"/>
+                </svg>
+                <svg class="icon icon-close" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+            </button>
+
+            <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
+                <a href="../index.html#features">Features</a>
+                <a class="active" href="../starter/installing.html">Docs</a>
+                <a href="../index.html#quickstart">Quickstart</a>
+                <a href="../index.html#middleware">Middleware</a>
+                <a href="../index.html#examples">Examples</a>
+                <a class="nav-github" data-github href="https://github.com"
+                   target="_blank" rel="noopener">
+                    <svg class="icon" viewBox="0 0 16 16" fill="currentColor"
+                         aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container docs-wrap">
+        <aside class="docs-sidebar" aria-label="Documentation Navigation">
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Getting Started</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li>
+                    <li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li>
+                    <li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li>
+                    <li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">Guide</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="routing.html">Routing in Depth</a></li>
+                    <li><a class="docs-nav-link" href="middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link active" href="templates.html">Template Engine &amp; Views</a></li>
+                    <li><a class="docs-nav-link" href="error-handling.html">Error Handling</a></li>
+                </ul>
+            </div>
+
+            <div class="docs-nav-group">
+                <div class="docs-nav-heading">API Reference</div>
+                <ul class="docs-nav-list">
+                    <li><a class="docs-nav-link" href="../api/app.html">App</a></li>
+                    <li><a class="docs-nav-link" href="../api/request.html">Request (req)</a></li>
+                    <li><a class="docs-nav-link" href="../api/response.html">Response (res)</a></li>
+                    <li><a class="docs-nav-link" href="../api/router.html">Router</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="docs-content" id="content">
+            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="separator">/</span>
+                <a href="routing.html">Guide</a>
+                <span class="separator">/</span>
+                <span aria-current="page">Template Engine &amp; Views</span>
+            </nav>
+
+            <h1>Template Engine &amp; Views</h1>
+            <p class="lead">
+                <code>dex</code> includes a zero-dependency Handlebars/Mustache-style template engine built directly into the framework. You can render server-side HTML effortlessly using <code>res.render()</code>.
+            </p>
+
+            <h2>Quick Example</h2>
+
+            <p>
+                Create a template file at <code>views/index.html</code>:
+            </p>
+
+            <pre><code>&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;&lt;title&gt;&#123;&#123;title&#125;&#125;&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Hello, &#123;&#123;user.name&#125;&#125;!&lt;/h1&gt;
+    &lt;ul&gt;
+        &#123;&#123;#each items&#125;&#125;
+        &lt;li&gt;&#123;&#123;this&#125;&#125; (index: &#123;&#123;@index&#125;&#125;)&lt;/li&gt;
+        &#123;&#123;/each&#125;&#125;
+    &lt;/ul&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+            <p>
+                In your D application code:
+            </p>
+
+            <pre><code>import dex;
+
+struct PageData
+{
+    string title;
+    struct User { string name; }
+    User user;
+    string[] items;
+}
+
+void main()
+{
+    auto app = dex.app();
+
+    app.setViews("./views"); // Optional: defaults to "./views"
+
+    app.get("/", (req, res) {
+        res.render("index", PageData(
+            "Welcome Page",
+            PageData.User("Ernestas Leliuga"),
+            ["Fast", "Zero dependencies", "Ergonomic"]
+        ));
+    });
+
+    app.listen(3000);
+}</code></pre>
+
+            <p>
+                When a client requests <code>GET /</code>, <code>res.render("index", locals)</code> compiles the template, binds the struct fields, sets <code>Content-Type: text/html; charset=utf-8</code>, and sends the rendered HTML.
+            </p>
+
+            <h2>Template Syntax</h2>
+
+            <h3>Variables &amp; HTML Escaping</h3>
+            <p>
+                Variables are enclosed in double braces <code>&#123;&#123;expression&#125;&#125;</code> and are <strong>automatically HTML-escaped</strong> to prevent Cross-Site Scripting (XSS) attacks:
+            </p>
+
+            <pre><code>&lt;p&gt;&#123;&#123;name&#125;&#125;&lt;/p&gt;</code></pre>
+
+            <h3>Raw Unescaped HTML</h3>
+            <p>
+                To render raw, unescaped HTML, use triple braces <code>&#123;&#123;&#123;rawHtml&#125;&#125;&#125;</code> or <code>&#123;&#123;&amp;rawHtml&#125;&#125;</code>:
+            </p>
+
+            <pre><code>&lt;div&gt;&#123;&#123;&#123;trustedHtmlContent&#125;&#125;&#125;&lt;/div&gt;</code></pre>
+
+            <h3>Dot Notation &amp; Array Indices</h3>
+            <p>
+                Navigate nested structs, classes, associative arrays, or JSON objects using standard dot notation and numeric indices:
+            </p>
+
+            <pre><code>&lt;p&gt;Author: &#123;&#123;post.author.email&#125;&#125;&lt;/p&gt;
+&lt;p&gt;First Tag: &#123;&#123;tags.0&#125;&#125;&lt;/p&gt;</code></pre>
+
+            <h3>Conditionals (<code>#if</code> &amp; <code>#unless</code>)</h3>
+            <p>
+                Use <code>&#123;&#123;#if expr&#125;&#125;</code> to conditionally render content. You can also provide an <code>&#123;&#123;else&#125;&#125;</code> block:
+            </p>
+
+            <pre><code>&#123;&#123;#if user.isAdmin&#125;&#125;
+    &lt;a href="/admin"&gt;Admin Dashboard&lt;/a&gt;
+&#123;&#123;else&#125;&#125;
+    &lt;p&gt;Standard Member&lt;/p&gt;
+&#123;&#123;/if&#125;&#125;</code></pre>
+
+            <p>
+                Use <code>&#123;&#123;#unless expr&#125;&#125;</code> (or Mustache inverted sections <code>&#123;&#123;^expr&#125;&#125;...&#123;&#123;/expr&#125;&#125;</code>) to render content when a condition is falsy:
+            </p>
+
+            <pre><code>&#123;&#123;#unless loggedIn&#125;&#125;
+    &lt;a href="/login"&gt;Sign In&lt;/a&gt;
+&#123;&#123;/unless&#125;&#125;</code></pre>
+
+            <h3>Loops (<code>#each</code>)</h3>
+            <p>
+                Iterate through arrays or associative arrays with <code>&#123;&#123;#each items&#125;&#125;</code>. Inside the loop, the current item becomes the local context:
+            </p>
+
+            <pre><code>&lt;ul&gt;
+&#123;&#123;#each products&#125;&#125;
+    &lt;li&gt;
+        #&#123;&#123;@index&#125;&#125;: &lt;strong&gt;&#123;&#123;name&#125;&#125;&lt;/strong&gt; — $&#123;&#123;price&#125;&#125;
+        &#123;&#123;#if @first&#125;&#125;&lt;span class="badge"&gt;Featured&lt;/span&gt;&#123;&#123;/if&#125;&#125;
+    &lt;/li&gt;
+&#123;&#123;else&#125;&#125;
+    &lt;li&gt;No products found.&lt;/li&gt;
+&#123;&#123;/each&#125;&#125;
+&lt;/ul&gt;</code></pre>
+
+            <p>
+                Special loop variables include:
+            </p>
+            <ul>
+                <li><code>&#123;&#123;this&#125;&#125;</code>: The current element itself (useful for arrays of strings or numbers).</li>
+                <li><code>&#123;&#123;@index&#125;&#125;</code>: 0-based iteration index.</li>
+                <li><code>&#123;&#123;@first&#125;&#125;</code>: Boolean <code>true</code> for the first element.</li>
+                <li><code>&#123;&#123;@last&#125;&#125;</code>: Boolean <code>true</code> for the final element.</li>
+                <li><code>&#123;&#123;@key&#125;&#125;</code>: Key name when iterating over an associative array or object.</li>
+            </ul>
+
+            <h3>Partials / Includes</h3>
+            <p>
+                Break templates into reusable components using <code>&#123;&#123;&gt; partialName&#125;&#125;</code>:
+            </p>
+
+            <pre><code>&#123;&#123;&gt; partials/header&#125;&#125;
+
+&lt;main&gt;
+    &lt;h1&gt;&#123;&#123;title&#125;&#125;&lt;/h1&gt;
+&lt;/main&gt;
+
+&#123;&#123;&gt; partials/footer&#125;&#125;</code></pre>
+
+            <p>
+                <code>dex</code> searches for partials relative to your <code>viewsDir</code> (e.g. <code>./views/partials/header.html</code> or <code>./views/partials/header</code>).
+            </p>
+
+            <h3>Comments</h3>
+            <p>
+                Comments are stripped during compilation and never emitted in the resulting HTML:
+            </p>
+
+            <pre><code>&#123;&#123;! Single-line comment &#125;&#125;
+&#123;&#123;!-- Multi-line comment that can span
+     multiple lines --&#125;&#125;</code></pre>
+
+            <h2>Application Configuration</h2>
+
+            <h3>Setting the Views Directory</h3>
+            <p>
+                By default, templates are loaded from <code>./views</code>. Change this using <code>app.setViews()</code>:
+            </p>
+            <pre><code>app.setViews("./src/templates");</code></pre>
+
+            <h3>Template Caching in Production</h3>
+            <p>
+                By default, templates are read and parsed on demand for instant reload during development. In production, enable in-memory thread-safe AST caching for maximum throughput:
+            </p>
+            <pre><code>app.cacheViews = true;</code></pre>
+
+            <h3>Custom Template Engines</h3>
+            <p>
+                You can register custom template renderers for any file extension with <code>app.engine(ext, renderer)</code>:
+            </p>
+
+            <pre><code>// Register a custom Markdown or template renderer
+app.engine("md", (string templatePath, JSONValue locals) {
+    import std.file : readText;
+    string markdownContent = readText(templatePath);
+    return customMarkdownToHtml(markdownContent);
+});
+
+// Render with custom engine
+app.get("/terms", (req, res) {
+    res.render("terms.md");
+});</code></pre>
+
+            <!-- Pager -->
+            <nav class="docs-pager" aria-label="Docs pagination">
+                <a class="pager-btn pager-prev" href="middleware.html">
+                    <span class="pager-label">&larr; Previous</span>
+                    <span class="pager-title">Middleware &amp; CORS</span>
+                </a>
+                <a class="pager-btn pager-next" href="error-handling.html">
+                    <span class="pager-label">Next &rarr;</span>
+                    <span class="pager-title">Error Handling</span>
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="container footer-bottom">
+            <p>&copy; <span data-year>2026</span> Ernestas Leliuga. MIT Licensed.</p>
+        </div>
+    </footer>
+
+    <script src="../script.js"></script>
+</body>
+</html>
+

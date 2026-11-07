@@ -1,0 +1,39 @@
+{{> partials/header}}
+
+<section class="hero">
+    <h1>Welcome, {{user.name}}!</h1>
+    <p class="lead">This page is rendered dynamically using dex's zero-dependency built-in template engine.</p>
+</section>
+
+{{#if hasNotifications}}
+<div class="alert alert-info">
+    <strong>Notice:</strong> You have active updates on your account.
+</div>
+{{/if}}
+
+<section class="card-grid">
+    <h2>Featured Projects ({{projects.length}})</h2>
+    {{#each projects}}
+    <div class="card">
+        <div class="card-header">
+            <h3>{{name}}</h3>
+            <span class="badge {{#if active}}badge-active{{else}}badge-archived{{/if}}">
+                {{#if active}}Active{{else}}Archived{{/if}}
+            </span>
+        </div>
+        <p>{{description}}</p>
+        <p class="meta">Project #{{@index}} &bull; Category: <strong>{{category}}</strong></p>
+    </div>
+    {{else}}
+    <p>No projects currently available.</p>
+    {{/each}}
+</section>
+
+<section class="card">
+    <h2>Raw HTML &amp; Escaping Demonstration</h2>
+    <p>Escaped variable: <code>{{escapedSample}}</code></p>
+    <p>Raw unescaped variable: {{{rawHtmlSample}}}</p>
+</section>
+
+{{> partials/footer}}
+

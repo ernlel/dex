@@ -1,0 +1,20 @@
+{{> partials/header}}
+
+<section class="card">
+    <h1>About dex Template Engine</h1>
+    <p class="lead">Built directly into the core framework using only the D standard library (Phobos).</p>
+
+    <h2>Key Highlights:</h2>
+    <ul>
+        <li><strong>Zero Dependencies:</strong> No third-party template packages or external parsers needed.</li>
+        <li><strong>Handlebars/Mustache Syntax:</strong> Familiar <code>&#123;&#123;var&#125;&#125;</code>, <code>&#123;&#123;#if&#125;&#125;</code>, <code>&#123;&#123;#each&#125;&#125;</code>, and <code>&#123;&#123;&gt; partial&#125;&#125;</code>.</li>
+        <li><strong>Fast Automatic XSS Escaping:</strong> All variables are HTML-escaped by default, with raw output enabled via <code>&#123;&#123;&#123;raw&#125;&#125;&#125;</code>.</li>
+        <li><strong>Strongly-Typed Integration:</strong> Pass any D struct or class directly into <code>res.render("view", myStruct)</code>.</li>
+        <li><strong>Thread-Safe AST Caching:</strong> Enable <code>app.cacheViews = true</code> in production for fast zero-disk-IO rendering.</li>
+    </ul>
+
+    <p><a class="button" href="/">&larr; Back to Home</a></p>
+</section>
+
+{{> partials/footer}}
+
