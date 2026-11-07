@@ -193,6 +193,24 @@ app.<span class="tok-fn">use</span>(<span class="tok-fn">cors</span>(options));<
                 <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-fn">securityHeaders</span>());</code></pre>
             </div>
 
+            <h3>5. Compression (`compression()`)</h3>
+            <p>
+                Compresses response bodies using Gzip or Deflate based on client <code>Accept-Encoding</code> headers and content type (HTML, JSON, JS, CSS, SVG, text):
+            </p>
+            <div class="code-frame">
+                <div class="code-header"><span class="code-lang">d</span></div>
+                <pre class="code"><code><span class="tok-kw">import</span> dex;
+
+<span class="tok-comment">// Default compression (threshold 1024 bytes)</span>
+app.<span class="tok-fn">use</span>(<span class="tok-fn">compression</span>());
+
+<span class="tok-comment">// Custom threshold or compression level (1-9)</span>
+<span class="tok-type">CompressionOptions</span> options;
+options.threshold = 512; <span class="tok-comment">// Compress payloads &gt;= 512 bytes</span>
+options.level = 6;
+app.<span class="tok-fn">use</span>(<span class="tok-fn">compression</span>(options));</code></pre>
+            </div>
+
             <!-- Pager -->
             <nav class="docs-pager" aria-label="Docs pagination">
                 <a class="pager-btn pager-prev" href="routing.html">

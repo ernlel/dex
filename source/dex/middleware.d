@@ -7,7 +7,8 @@ import std.file : isDir, isFile, read, timeLastModified;
 import std.format : format;
 import std.path : absolutePath, buildNormalizedPath, dirSeparator, extension;
 import std.stdio : stderr;
-import std.string : indexOf, split, startsWith;
+import std.string : indexOf, split, startsWith, strip, toLower;
+import std.zlib : Compress, HeaderFormat;
 
 import dex.http : httpDate;
 import dex.request : Request;
@@ -225,6 +226,148 @@ Middleware securityHeaders(SecurityOptions options = SecurityOptions.init)
             response.set("strict-transport-security", options.strictTransportSecurity);
         next();
     };
+}
+
+/// Options for `compression` middleware.
+struct CompressionOptions
+{
+    /// Minimum response body byte size before compression is applied.
+    /// Defaults to 1024 bytes (1 KiB). Smaller payloads are often larger compressed.
+    size_t threshold = 1024;
+
+    /// Compression level from 1 (fastest) to 9 (best compression), or -1 for zlib default.
+    int level = -1;
+
+    /// Filter predicate to determine if a response should be compressed based on Content-Type.
+    /// If null, uses the default compressible MIME type filter.
+    bool delegate(string contentType) filter;
+}
+
+/// Compression middleware: applies gzip or deflate encoding to compressible responses.
+Middleware compression(CompressionOptions options = CompressionOptions.init)
+{
+    return (Request request, Response response, Next next)
+    {
+        next();
+
+        // Downstream handlers have run.
+        if (!response.finished || response.has("content-encoding"))
+            return;
+
+        // Skip responses with no body or streaming disk files
+        if (response._body.length < options.threshold || response._filePath.length != 0)
+            return;
+
+        // Status codes that must not have a body
+        const status = response.statusCode;
+        if (status < 200 || status == 204 || status == 304)
+            return;
+
+        // Check if content-type is compressible
+        string ct = response.get("content-type");
+        if (ct is null)
+            ct = "text/html";
+
+        if (options.filter !is null)
+        {
+            if (!options.filter(ct))
+                return;
+        }
+        else if (!isCompressible(ct))
+        {
+            return;
+        }
+
+        // Check client Accept-Encoding
+        string acceptEncoding = request.get("accept-encoding");
+        if (acceptEncoding is null)
+            return;
+
+        string selectedEncoding;
+        HeaderFormat format;
+
+        if (acceptsEncoding(acceptEncoding, "gzip"))
+        {
+            selectedEncoding = "gzip";
+            format = HeaderFormat.gzip;
+        }
+        else if (acceptsEncoding(acceptEncoding, "deflate"))
+        {
+            selectedEncoding = "deflate";
+            format = HeaderFormat.deflate;
+        }
+        else
+        {
+            return;
+        }
+
+        try
+        {
+            auto cmp = options.level >= 0
+                ? new Compress(options.level, format)
+                : new Compress(format);
+
+            auto compressed = cast(const(ubyte)[]) (cmp.compress(response._body) ~ cmp.flush());
+
+            // Only use compressed if it actually reduced the payload size
+            if (compressed.length < response._body.length)
+            {
+                response.setHeaderDirect("content-encoding", selectedEncoding);
+                response.appendHeaderDirect("vary", "Accept-Encoding");
+                response.setBodyDirect(compressed);
+            }
+        }
+        catch (Exception)
+        {
+            // Fall back gracefully to uncompressed body
+        }
+    };
+}
+
+/// Checks whether a MIME content-type string represents compressible data (text, json, js, xml, svg, wasm).
+bool isCompressible(string contentType) pure
+{
+    string ct = contentType.toLower;
+    auto semi = ct.indexOf(';');
+    if (semi >= 0)
+        ct = ct[0 .. semi].strip;
+
+    if (ct.startsWith("text/"))
+        return true;
+    if (ct == "application/json" || ct == "application/ld+json")
+        return true;
+    if (ct == "application/javascript" || ct == "application/x-javascript")
+        return true;
+    if (ct == "application/xml" || ct == "application/atom+xml" || ct == "application/rss+xml")
+        return true;
+    if (ct == "image/svg+xml")
+        return true;
+    if (ct == "application/wasm")
+        return true;
+
+    return false;
+}
+
+/// Checks whether the client's `Accept-Encoding` header accepts the specified encoding.
+bool acceptsEncoding(string header, string target) pure
+{
+    foreach (part; header.split(','))
+    {
+        string token = part.strip.toLower;
+        auto semi = token.indexOf(';');
+        if (semi >= 0)
+        {
+            string enc = token[0 .. semi].strip;
+            string q = token[semi + 1 .. $].strip;
+            if (enc == target && q != "q=0" && q != "q=0.0" && q != "q=0.00" && q != "q=0.000")
+                return true;
+        }
+        else if (token == target || token == "*")
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 private string withTrailingSeparator(string path)

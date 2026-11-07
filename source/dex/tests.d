@@ -989,3 +989,80 @@ unittest
     assert(response.status == 200);
     assert(response.body == "CUSTOM CONTENT");
 }
+
+// Built-in compression middleware tests.
+unittest
+{
+    import std.array : replicate;
+    import std.zlib : HeaderFormat, UnCompress;
+
+    auto app = new App;
+    scope (exit) app.close();
+
+    // Use compression with small threshold (50 bytes) for testing
+    CompressionOptions compOpts;
+    compOpts.threshold = 50;
+    app.use(compression(compOpts));
+
+    string largePayload = "Hello, dex compression world! ".replicate(20); // ~600 bytes
+    string smallPayload = "short"; // 5 bytes
+
+    app.get("/large", (req, res)
+    {
+        res.type("text/plain").send(largePayload);
+    });
+
+    app.get("/small", (req, res)
+    {
+        res.type("text/plain").send(smallPayload);
+    });
+
+    app.get("/binary", (req, res)
+    {
+        res.type("bin").send(largePayload);
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // 1. Gzip compression on large compressible payload
+    connection.send("GET", "/large", null, null, "Accept-Encoding: gzip, deflate\r\n");
+    auto response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["content-encoding"] == "gzip");
+    assert(response.headers["vary"] == "Accept-Encoding");
+    auto ucmp = new UnCompress(HeaderFormat.gzip);
+    auto decompressed = cast(string) (ucmp.uncompress(cast(ubyte[]) response.body) ~ ucmp.flush());
+    assert(decompressed == largePayload);
+
+    // 2. Deflate compression when client only accepts deflate
+    connection.send("GET", "/large", null, null, "Accept-Encoding: deflate\r\n");
+    response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["content-encoding"] == "deflate");
+    auto ucmpDeflate = new UnCompress(HeaderFormat.deflate);
+    decompressed = cast(string) (ucmpDeflate.uncompress(cast(ubyte[]) response.body) ~ ucmpDeflate.flush());
+    assert(decompressed == largePayload);
+
+    // 3. Below threshold: must remain uncompressed
+    connection.send("GET", "/small", null, null, "Accept-Encoding: gzip\r\n");
+    response = connection.read();
+    assert(response.status == 200);
+    assert("content-encoding" !in response.headers);
+    assert(response.body == smallPayload);
+
+    // 4. Incompressible binary type: must remain uncompressed
+    connection.send("GET", "/binary", null, null, "Accept-Encoding: gzip\r\n");
+    response = connection.read();
+    assert(response.status == 200);
+    assert("content-encoding" !in response.headers);
+    assert(response.body == largePayload);
+
+    // 5. No Accept-Encoding header: must remain uncompressed
+    connection.send("GET", "/large");
+    response = connection.read();
+    assert(response.status == 200);
+    assert("content-encoding" !in response.headers);
+    assert(response.body == largePayload);
+}

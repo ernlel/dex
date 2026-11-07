@@ -56,10 +56,11 @@ Focus: **Payload optimization, protection, and operational readiness.**
     - Automatic fast-path HTML escaping to prevent XSS.
   - In-memory thread-safe template caching (`app.cacheViews = bool`).
 
-- [ ] **Response Compression Middleware (`compression()`)**
+- [x] **Response Compression Middleware (`compression()`)**
   - Gzip and Deflate streaming compression using Phobos `std.zlib`.
   - Inspect `Accept-Encoding` header for client support.
-  - Configurable compression threshold (e.g., skip payloads < 1 KiB) and content-type filter (`text/*`, `application/json`, `application/javascript`, `image/svg+xml`).
+  - Configurable compression threshold (defaults to 1 KiB) and content-type filter (`text/*`, `application/json`, `application/javascript`, `image/svg+xml`, `application/wasm`).
+  - Automatic `Vary: Accept-Encoding` header and fallback to raw payload if compression doesn't decrease size.
 
 - [ ] **Rate Limiting Middleware (`rateLimit()`)**
   - Sliding-window or token-bucket rate limiter.

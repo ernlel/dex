@@ -338,6 +338,27 @@ class Response
         return cast(string) _body;
     }
 
+    package void setHeaderDirect(string name, string value)
+    {
+        validateHeader(name, value);
+        _headers[name.toLower] = value;
+    }
+
+    package void appendHeaderDirect(string name, string value)
+    {
+        validateHeader(name, value);
+        const key = name.toLower;
+        if (auto current = key in _headers)
+            *current ~= ", " ~ value;
+        else
+            _headers[key] = value;
+    }
+
+    package void setBodyDirect(const(ubyte)[] newBody)
+    {
+        _body = newBody;
+    }
+
     private void finish()
     {
         if (_finished)
