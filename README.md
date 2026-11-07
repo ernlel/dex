@@ -153,6 +153,20 @@ dmd -I/usr/local/include/d/dex app.d -L-ldex -of=myapp
 dmd -Idex/source app.d dex/libdex.a -of=myapp
 ```
 
+#### C. Download Pre-Packaged Release Archives
+
+If you prefer not to use `git clone`, you can download minimal standalone release archives (~38 KiB) directly from the [GitHub Releases](https://github.com/ernlel/dex/releases) page. These contain only the essential library files (`source/dex/*.d`), `LICENSE`, `dub.json`, and `Makefile`:
+
+```sh
+# Download and extract the minimal source package:
+curl -fsSL https://github.com/ernlel/dex/releases/download/v0.4.0/dex-0.4.0.tar.gz | tar -xz
+
+# Compile your app against the unpacked sources:
+dmd -i -Idex-0.4.0/source app.d -of=myapp
+```
+
+Precompiled Linux x86_64 binaries (`dex-0.4.0-linux-x86_64.tar.gz`) containing `libdex.a` are also available on each release.
+
 Requires a recent D compiler (tested with DMD 2.113 / LDC 1.40).
 
 ## Routing
