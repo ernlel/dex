@@ -58,7 +58,25 @@ void main()
 
 ## Install
 
-Add this repository as a path dependency:
+### Option 1: Using DUB (Package Manager)
+
+Add `dex` to your `dub.json`:
+
+```sh
+dub add dex
+```
+
+Or add it to your `dub.json` dependencies manually:
+
+```json
+{
+    "dependencies": {
+        "dex": "~>0.4.0"
+    }
+}
+```
+
+Or as a local path dependency during development:
 
 ```json
 {
@@ -70,13 +88,72 @@ Add this repository as a path dependency:
 }
 ```
 
-Then:
+Then run:
 
 ```sh
 dub run
 ```
 
-Requires a recent D compiler and Dub (tested with DMD 2.113 / Dub 1.42).
+---
+
+### Option 2: Manual Installation & Compilation (Without DUB)
+
+Because `dex` has **zero external runtime dependencies** (it uses only standard Phobos and druntime), you do not need DUB to build or run applications. You can compile directly with **DMD** or **LDC**.
+
+#### A. Direct Compilation with `-i` (Recommended)
+
+Clone `dex` into your project or add it as a git submodule:
+
+```sh
+git clone https://github.com/ernlel/dex.git
+# or: git submodule add https://github.com/ernlel/dex.git
+```
+
+Use D's compiler-assisted dependency resolution flag (`-i`) to automatically discover, compile, and link `dex` alongside your application:
+
+```sh
+# Using DMD:
+dmd -i -Idex/source app.d -of=myapp
+
+# Using LDC:
+ldc2 -i -Idex/source app.d -of=myapp
+```
+
+Run your application:
+
+```sh
+./myapp
+```
+
+#### B. Build as a Static Library (`libdex.a`) via Makefile
+
+You can build `libdex.a` using the included `Makefile`:
+
+```sh
+git clone https://github.com/ernlel/dex.git
+cd dex
+
+# Build release static library libdex.a:
+make
+
+# Run the test suite:
+make test
+
+# (Optional) Install libdex.a and module interfaces to /usr/local:
+sudo make install
+```
+
+Compile and link your application against the static library:
+
+```sh
+# If installed system-wide:
+dmd -I/usr/local/include/d/dex app.d -L-ldex -of=myapp
+
+# Or using the local archive file:
+dmd -Idex/source app.d dex/libdex.a -of=myapp
+```
+
+Requires a recent D compiler (tested with DMD 2.113 / LDC 1.40).
 
 ## Routing
 
