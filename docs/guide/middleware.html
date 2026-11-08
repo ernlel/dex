@@ -211,6 +211,26 @@ options.level = 6;
 app.<span class="tok-fn">use</span>(<span class="tok-fn">compression</span>(options));</code></pre>
             </div>
 
+            <h3>6. Rate Limiting (`rateLimit()`)</h3>
+            <p>
+                Restricts incoming request volume per client key within a configured time window to protect APIs against abuse and DDoS:
+            </p>
+            <div class="code-frame">
+                <div class="code-header"><span class="code-lang">d</span></div>
+                <pre class="code"><code><span class="tok-kw">import</span> dex;
+<span class="tok-kw">import</span> core.time : dur;
+
+<span class="tok-comment">// Default rate limiter (60 requests per 1 minute per IP)</span>
+app.<span class="tok-fn">use</span>(<span class="tok-fn">rateLimit</span>());
+
+<span class="tok-comment">// Custom rate limit rules on API routes</span>
+<span class="tok-type">RateLimitOptions</span> options;
+options.max = 100;
+options.window = 15.<span class="tok-fn">dur</span>!<span class="tok-str">"minutes"</span>;
+options.message = <span class="tok-str">"API rate limit exceeded. Please wait before retrying."</span>;
+app.<span class="tok-fn">use</span>(<span class="tok-str">"/api"</span>, <span class="tok-fn">rateLimit</span>(options));</code></pre>
+            </div>
+
             <!-- Pager -->
             <nav class="docs-pager" aria-label="Docs pagination">
                 <a class="pager-btn pager-prev" href="routing.html">

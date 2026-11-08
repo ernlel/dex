@@ -1066,3 +1066,53 @@ unittest
     assert("content-encoding" !in response.headers);
     assert(response.body == largePayload);
 }
+
+// Built-in rate limiting middleware tests.
+unittest
+{
+    import core.time : dur;
+
+    auto app = new App;
+    scope (exit) app.close();
+
+    RateLimitOptions opts;
+    opts.max = 2; // Allow only 2 requests
+    opts.window = 5.dur!"seconds";
+    opts.standardHeaders = true;
+    opts.legacyHeaders = true;
+    app.use(rateLimit(opts));
+
+    app.get("/test", (req, res)
+    {
+        res.send("OK");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // 1. First request -> status 200, remaining = 1
+    connection.send("GET", "/test");
+    auto res1 = connection.read();
+    assert(res1.status == 200);
+    assert(res1.body == "OK");
+    assert(res1.headers["ratelimit-limit"] == "2");
+    assert(res1.headers["ratelimit-remaining"] == "1");
+    assert("ratelimit-reset" in res1.headers);
+    assert(res1.headers["x-ratelimit-limit"] == "2");
+    assert(res1.headers["x-ratelimit-remaining"] == "1");
+
+    // 2. Second request -> status 200, remaining = 0
+    connection.send("GET", "/test");
+    auto res2 = connection.read();
+    assert(res2.status == 200);
+    assert(res2.headers["ratelimit-remaining"] == "0");
+
+    // 3. Third request -> status 429 Too Many Requests
+    connection.send("GET", "/test");
+    auto res3 = connection.read();
+    assert(res3.status == 429);
+    assert(res3.body == "Too Many Requests, please try again later.");
+    assert("retry-after" in res3.headers);
+    assert(res3.headers["ratelimit-remaining"] == "0");
+}

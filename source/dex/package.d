@@ -3,8 +3,8 @@ module dex;
 
 public import dex.app : App;
 public import dex.errors : HttpError;
-public import dex.middleware : CompressionOptions, CorsOptions, SecurityOptions, StaticOptions,
-                              compression, cors, logger, securityHeaders, serveStatic;
+public import dex.middleware : CompressionOptions, CorsOptions, RateLimitOptions, SecurityOptions, StaticOptions,
+                              compression, cors, logger, rateLimit, securityHeaders, serveStatic;
 public import dex.request : Request;
 public import dex.response : Response, CookieOptions, SameSite;
 public import dex.router : ErrorHandler, Handler, Middleware, Next, Router;

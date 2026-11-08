@@ -62,11 +62,11 @@ Focus: **Payload optimization, protection, and operational readiness.**
   - Configurable compression threshold (defaults to 1 KiB) and content-type filter (`text/*`, `application/json`, `application/javascript`, `image/svg+xml`, `application/wasm`).
   - Automatic `Vary: Accept-Encoding` header and fallback to raw payload if compression doesn't decrease size.
 
-- [ ] **Rate Limiting Middleware (`rateLimit()`)**
-  - Sliding-window or token-bucket rate limiter.
-  - Configurable max requests per time window per IP or API key.
-  - Standard headers: `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
-  - Status `429 Too Many Requests` with customizable response body.
+- [x] **Rate Limiting Middleware (`rateLimit()`)**
+  - Sliding-window and fixed-window in-memory rate limiter with thread-safe mutex store.
+  - Configurable max requests per time window per IP, API key, or custom `keyGenerator`.
+  - Standard RFC draft headers: `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` and optional legacy `X-RateLimit-*`.
+  - Status `429 Too Many Requests` with automatic `Retry-After` header and customizable response handler.
 
 - [ ] **Per-Route Body Size Limits**
   - Allow individual routes to override `app.maxBodySize`.
