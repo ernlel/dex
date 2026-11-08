@@ -428,8 +428,8 @@ See [ROADMAP.md](ROADMAP.md) for planned features, upcoming milestones, and wish
 
 ## Author
 
-**Ernestas Leliuga** ([@ernlel](https://github.com/ernlel))
+[@ernlel](https://github.com/ernlel)
 
 ## License
 
-MIT &copy; 2026 Ernestas Leliuga. See [LICENSE](LICENSE).
+MIT &copy; 2026 [ernlel](https://github.com/ernlel). See [LICENSE](LICENSE).
