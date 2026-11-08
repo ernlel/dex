@@ -186,7 +186,7 @@ res.json(User("Alice", 42));</code></pre>
                 Renders a view template using the application's view engine, sets <code>Content-Type: text/html; charset=utf-8</code>, and ends the response. <code>locals</code> can be any D struct, class, associative array, or <code>JSONValue</code>. See the <a href="../guide/templates.html">Template Engine Guide</a> for details.
             </p>
             <pre><code>struct PageData { string title; string user; }
-res.render("index", PageData("Home", "Ernestas"));
+res.render("index", PageData("Home", "Example User"));
 
 // Without locals:
 res.render("about");</code></pre>
@@ -266,7 +266,7 @@ res.cookie("session_id", "xyz123", CookieOptions(
 
     <footer class="site-footer">
         <div class="container footer-bottom">
-            <p>&copy; <span data-year>2026</span> Ernestas Leliuga. MIT Licensed.</p>
+            <p>&copy; <span data-year>2026</span> <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>. MIT Licensed.</p>
         </div>
     </footer>
 

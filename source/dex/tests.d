@@ -167,7 +167,7 @@ unittest
     app.get("/encoded/:name", (req, res) { res.send(req.params["name"]); });
     app.get("/tags", (req, res) { res.send(req.queryParams("tag").join(",")); });
     app.post("/echo", (req, res) { res.json(req.body); });
-    app.get("/struct", (req, res) { res.json(JsonUser(1, "Ada", true)); });
+    app.get("/struct", (req, res) { res.json(JsonUser(1, "User", true)); });
     app.post("/type", (req, res) { res.send(req.isType("json") ? "yes" : "no"); });
 
     app.start(0, "127.0.0.1");
@@ -191,9 +191,9 @@ unittest
     response = connection.read();
     assert(response.body == "a/b/c");
 
-    connection.send("GET", "/encoded/Ada%20Lovelace");
+    connection.send("GET", "/encoded/Sample%20User");
     response = connection.read();
-    assert(response.body == "Ada Lovelace");
+    assert(response.body == "Sample User");
 
     connection.send("GET", "/tags?tag=a&tag=b");
     response = connection.read();
@@ -210,7 +210,7 @@ unittest
     response = connection.read();
     json = parseJSON(response.body);
     assert(json["id"].integer == 1);
-    assert(json["name"].str == "Ada");
+    assert(json["name"].str == "User");
     assert(json["active"].type == JSONType.true_);
 
     connection.send("POST", "/type", `{}`, "application/json");
@@ -403,20 +403,20 @@ unittest
     auto connection = TestConnection.connect(app.port);
     scope (exit) connection.close();
 
-    connection.send("POST", "/form", "name=Ada&tag=a&tag=b",
+    connection.send("POST", "/form", "name=User&tag=a&tag=b",
                     "application/x-www-form-urlencoded");
     auto response = connection.read();
     auto json = parseJSON(response.body);
-    assert(json["name"].str == "Ada");
+    assert(json["name"].str == "User");
     assert(json["tag"].type == JSONType.array);
     assert(json["tag"].array[0].str == "a");
     assert(json["tag"].array[1].str == "b");
 
-    connection.send("POST", "/field", `{"name":"Ada","age":36}`,
+    connection.send("POST", "/field", `{"name":"User","age":36}`,
                     "application/json");
     response = connection.read();
     json = parseJSON(response.body);
-    assert(json["name"].str == "Ada");
+    assert(json["name"].str == "User");
     assert(json["age"].integer == 36);
 }
 
@@ -430,7 +430,7 @@ unittest
     options.maxAge = dur!"days"(1);
     options.sameSite = SameSite.lax;
 
-    app.get("/set", (req, res) { res.cookie("user", "Ada Lovelace", options).send("set"); });
+    app.get("/set", (req, res) { res.cookie("user", "Sample User", options).send("set"); });
     app.get("/read", (req, res)
     {
         auto value = req.cookie("user");
@@ -447,14 +447,14 @@ unittest
     connection.send("GET", "/set");
     auto response = connection.read();
     const cookieHeader = response.headers["set-cookie"];
-    assert(cookieHeader.startsWith("user=Ada%20Lovelace"));
+    assert(cookieHeader.startsWith("user=Sample%20User"));
     assert(cookieHeader.indexOf("HttpOnly") >= 0);
     assert(cookieHeader.indexOf("SameSite=Lax") >= 0);
 
     connection.send("GET", "/read", null, null,
-                    "Cookie: user=Ada%20Lovelace\r\n");
+                    "Cookie: user=Sample%20User\r\n");
     response = connection.read();
-    assert(response.body == "Ada Lovelace");
+    assert(response.body == "Sample User");
 
     connection.send("GET", "/clear");
     response = connection.read();
@@ -956,7 +956,7 @@ unittest
 
     app.get("/profile", (req, res)
     {
-        res.render("profile", UserLocals("My App", "Ernestas Leliuga"));
+        res.render("profile", UserLocals("My App", "Sample User"));
     });
 
     // Custom engine test
@@ -981,7 +981,7 @@ unittest
     auto response = connection.read();
     assert(response.status == 200);
     assert(response.headers["content-type"] == "text/html; charset=utf-8");
-    assert(response.body == "<header>Title: My App</header>\n<main>Welcome, Ernestas Leliuga!</main>");
+    assert(response.body == "<header>Title: My App</header>\n<main>Welcome, Sample User!</main>");
 
     // GET /custom: verify custom engine
     connection.send("GET", "/custom");

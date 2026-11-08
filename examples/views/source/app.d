@@ -70,8 +70,8 @@ void main()
         auto locals = IndexLocals(
             title: "Home",
             currentYear: Clock.currTime().year,
-            author: "Ernestas Leliuga",
-            user: User("Ernestas", "dev@example.com"),
+            author: "Example Author",
+            user: User("Example User", "user@example.com"),
             hasNotifications: true,
             projects: [
                 Project("dex Web Framework", "Express-inspired, zero-dependency web framework for D", "Frameworks", true),
@@ -91,7 +91,7 @@ void main()
         res.render("about", AboutLocals(
             title: "About",
             currentYear: Clock.currTime().year,
-            author: "Ernestas Leliuga"
+            author: "Example Author"
         ));
     });
 
@@ -101,7 +101,7 @@ void main()
         auto locals = IndexLocals(
             title: "Projects",
             currentYear: Clock.currTime().year,
-            author: "Ernestas Leliuga",
+            author: "Example Author",
             user: User("Developer", "dev@example.com"),
             hasNotifications: false,
             projects: [
