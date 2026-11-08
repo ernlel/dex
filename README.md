@@ -1,8 +1,24 @@
-# dex
+<p align="center">
+  <a href="https://ernlel.github.io/dex/">
+    <img src="docs/assets/dex-icon.png" width="120" height="120" alt="dex logo">
+  </a>
+</p>
 
-[![CI](https://github.com/ernlel/dex/actions/workflows/ci.yml/badge.svg)](https://github.com/ernlel/dex/actions/workflows/ci.yml)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://ernlel.github.io/dex/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<h1 align="center">dex</h1>
+
+<p align="center">
+  <b>Express-inspired, ergonomic web framework for the D programming language.</b><br>
+  Zero dependencies outside Phobos · Built-in HTTP/1.1 server · Native compiled speed
+</p>
+
+<p align="center">
+  <a href="https://github.com/ernlel/dex/actions/workflows/ci.yml"><img src="https://github.com/ernlel/dex/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://ernlel.github.io/dex/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg" alt="Documentation"></a>
+  <a href="https://github.com/ernlel/dex/releases"><img src="https://img.shields.io/github/v/release/ernlel/dex?color=orange" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+</p>
+
+---
 
 Express-inspired web framework for D. Small surface area, zero dependencies
 outside Phobos, and a built-in HTTP/1.1 server.

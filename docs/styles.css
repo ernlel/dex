@@ -207,23 +207,21 @@ main:focus-visible {
 }
 
 .brand-mark {
-    display: grid;
+    display: inline-block;
     width: 30px;
     height: 30px;
-    place-items: center;
-    padding-bottom: 2px;
     border-radius: 8px;
-    background: var(--accent-solid);
-    color: var(--accent-ink);
-    font-family: var(--font-mono);
-    font-size: 1.05rem;
-    font-weight: 700;
-    line-height: 1;
-    transition: background-color 160ms var(--ease);
+    background: url("assets/dex-icon.png") center/cover no-repeat;
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+    vertical-align: middle;
+    transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
 }
 
 .brand:hover .brand-mark {
-    background: var(--accent-hover);
+    transform: scale(1.06);
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
 }
 
 .nav {
