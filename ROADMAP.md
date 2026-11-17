@@ -105,6 +105,11 @@ Focus: **Reverse-proxy awareness, HTTP caching semantics, typed request binding,
   - HMAC-SHA256 cookie signing and verification (`res.cookie` signing / `req.signedCookies`).
   - Pluggable `SessionStore` interface with a thread-safe in-memory default store and TTL expiration.
 
+- [ ] **Documentation & Reference Sync**
+  - Fix stale `README.md` statements (lazy JSON body error timing, dual IPv4/IPv6 listener support, `res.render`, `req.maxBodySize`, `app.close(timeout)`, and `206` Range streaming).
+  - Replace raw Markdown backticks in `docs/guide/middleware.html` headings (`compression()`, `rateLimit()`, `bodyLimit()`) with `<code>` tags and document all middleware `*Options` structs.
+  - Complete API & landing page docs (`docs/api/request.html`, `docs/api/response.html`, `docs/api/router.html`, `docs/starter/faq.html`, `docs/index.html`) and deduplicate `[0.2.0]` vs `[0.3.0]`/`[0.4.0]` entries in `CHANGELOG.md`.
+
 ---
 
 ## 🌊 Target Milestone: v0.6.0 (Streaming I/O, WebSockets & Observability)
