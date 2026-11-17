@@ -76,6 +76,7 @@
                 <ul class="docs-nav-list">
                     <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
                     <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li>
                     <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
                 </ul>
             </div>
@@ -110,12 +111,17 @@
             <h2>Properties &amp; Configuration</h2>
             <ul>
                 <li><code>idleTimeout: Duration</code> — Keep-alive socket idle timeout (default: <code>60.seconds</code>).</li>
+                <li><code>shutdownTimeout: Duration</code> — Maximum time <code>close()</code> waits for in-flight requests to drain (default: <code>5.seconds</code>).</li>
+                <li><code>handleSignals: bool</code> — Install POSIX <code>SIGINT</code>/<code>SIGTERM</code> graceful shutdown hooks during <code>listen()</code> and <code>wait()</code> (default: <code>true</code>).</li>
                 <li><code>maxBodySize: size_t</code> — Maximum accepted request body in bytes (default: 10 MiB).</li>
                 <li><code>maxHeaderSize: size_t</code> — Maximum accepted header bytes (default: 64 KiB).</li>
                 <li><code>maxConnections: size_t</code> — Max concurrent TCP connections; 0 means unlimited (default: 1024).</li>
                 <li><code>showStackTraces: bool</code> — Send exception stack traces to clients on 500 errors (default: false).</li>
                 <li><code>logErrors: bool</code> — Write unhandled 5xx errors to stderr (default: true).</li>
                 <li><code>caseSensitive: bool</code> — Enable case-sensitive route matching (default: false).</li>
+                <li><code>viewsDir: string</code> — Directory where templates reside (default: <code>"./views"</code>).</li>
+                <li><code>defaultViewEngine: string</code> — Default view extension (default: <code>"html"</code>).</li>
+                <li><code>cacheViews: bool</code> — Enable in-memory compiled template caching (default: <code>false</code>).</li>
                 <li><code>isListening: bool</code> — Whether the server is currently accepting connections.</li>
                 <li><code>port: ushort</code> — The bound TCP port (especially useful with ephemeral port <code>listen(0)</code>).</li>
             </ul>
@@ -132,14 +138,34 @@
                 Starts accepting connections on a background accept thread without blocking the calling thread. Read the bound port from <code>app.port</code>.
             </p>
 
-            <h3>app.close()</h3>
+            <h3>app.close([timeout])</h3>
             <p>
-                Stops accepting incoming connections and safely closes all active connections.
+                Stops accepting incoming connections, closes idle keep-alive sockets immediately, signals in-flight responses with <code>Connection: close</code>, and waits up to <code>timeout</code> (defaults to <code>shutdownTimeout</code>) for active requests to complete before forcing remaining connections closed.
             </p>
 
             <h3>app.use([prefix], handler | middleware | router)</h3>
             <p>
                 Registers middleware or mounts a sub-router, optionally under a URL prefix.
+            </p>
+
+            <h3>app.setViews(directory)</h3>
+            <p>
+                Sets the filesystem directory where view templates are located. Defaults to <code>"./views"</code>. Returns <code>this</code>.
+            </p>
+
+            <h3>app.viewEngine(extension)</h3>
+            <p>
+                Sets the default view file extension (e.g. <code>"html"</code>) used when <code>res.render()</code> is called without a file extension. Returns <code>this</code>.
+            </p>
+
+            <h3>app.engine(extension, renderer)</h3>
+            <p>
+                Registers a custom template engine delegate for the specified file extension with signature <code>string delegate(string templatePath, JSONValue locals)</code>. Returns <code>this</code>.
+            </p>
+
+            <h3>app.renderView(viewName, locals)</h3>
+            <p>
+                Compiles and renders a view template file by name with the given JSON locals. Used internally by <code>res.render()</code>.
             </p>
 
             <!-- Pager -->

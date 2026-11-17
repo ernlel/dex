@@ -1,4 +1,5 @@
 .dub/
+dub.selections.json
 *.o
 *.obj
 *.a
@@ -6,6 +7,9 @@
 *.exe
 *.pdb
 /dex-test-library
+/dex-test-runner
 /examples/hello/hello
 /examples/todos/todos
-/examples/auth-cors/auth-cors
+/examples/api-server/api-server
+/examples/file-server/file-server
+/examples/views/views-example

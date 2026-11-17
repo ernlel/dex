@@ -167,7 +167,7 @@ unittest
     app.get("/encoded/:name", (req, res) { res.send(req.params["name"]); });
     app.get("/tags", (req, res) { res.send(req.queryParams("tag").join(",")); });
     app.post("/echo", (req, res) { res.json(req.body); });
-    app.get("/struct", (req, res) { res.json(JsonUser(1, "Ada", true)); });
+    app.get("/struct", (req, res) { res.json(JsonUser(1, "User", true)); });
     app.post("/type", (req, res) { res.send(req.isType("json") ? "yes" : "no"); });
 
     app.start(0, "127.0.0.1");
@@ -191,9 +191,9 @@ unittest
     response = connection.read();
     assert(response.body == "a/b/c");
 
-    connection.send("GET", "/encoded/Ada%20Lovelace");
+    connection.send("GET", "/encoded/Sample%20User");
     response = connection.read();
-    assert(response.body == "Ada Lovelace");
+    assert(response.body == "Sample User");
 
     connection.send("GET", "/tags?tag=a&tag=b");
     response = connection.read();
@@ -210,7 +210,7 @@ unittest
     response = connection.read();
     json = parseJSON(response.body);
     assert(json["id"].integer == 1);
-    assert(json["name"].str == "Ada");
+    assert(json["name"].str == "User");
     assert(json["active"].type == JSONType.true_);
 
     connection.send("POST", "/type", `{}`, "application/json");
@@ -403,20 +403,20 @@ unittest
     auto connection = TestConnection.connect(app.port);
     scope (exit) connection.close();
 
-    connection.send("POST", "/form", "name=Ada&tag=a&tag=b",
+    connection.send("POST", "/form", "name=User&tag=a&tag=b",
                     "application/x-www-form-urlencoded");
     auto response = connection.read();
     auto json = parseJSON(response.body);
-    assert(json["name"].str == "Ada");
+    assert(json["name"].str == "User");
     assert(json["tag"].type == JSONType.array);
     assert(json["tag"].array[0].str == "a");
     assert(json["tag"].array[1].str == "b");
 
-    connection.send("POST", "/field", `{"name":"Ada","age":36}`,
+    connection.send("POST", "/field", `{"name":"User","age":36}`,
                     "application/json");
     response = connection.read();
     json = parseJSON(response.body);
-    assert(json["name"].str == "Ada");
+    assert(json["name"].str == "User");
     assert(json["age"].integer == 36);
 }
 
@@ -430,7 +430,7 @@ unittest
     options.maxAge = dur!"days"(1);
     options.sameSite = SameSite.lax;
 
-    app.get("/set", (req, res) { res.cookie("user", "Ada Lovelace", options).send("set"); });
+    app.get("/set", (req, res) { res.cookie("user", "Sample User", options).send("set"); });
     app.get("/read", (req, res)
     {
         auto value = req.cookie("user");
@@ -447,14 +447,14 @@ unittest
     connection.send("GET", "/set");
     auto response = connection.read();
     const cookieHeader = response.headers["set-cookie"];
-    assert(cookieHeader.startsWith("user=Ada%20Lovelace"));
+    assert(cookieHeader.startsWith("user=Sample%20User"));
     assert(cookieHeader.indexOf("HttpOnly") >= 0);
     assert(cookieHeader.indexOf("SameSite=Lax") >= 0);
 
     connection.send("GET", "/read", null, null,
-                    "Cookie: user=Ada%20Lovelace\r\n");
+                    "Cookie: user=Sample%20User\r\n");
     response = connection.read();
-    assert(response.body == "Ada Lovelace");
+    assert(response.body == "Sample User");
 
     connection.send("GET", "/clear");
     response = connection.read();
@@ -885,4 +885,458 @@ unittest
     assert(response.headers["access-control-allow-origin"] == "https://example.com");
     assert(response.headers["access-control-allow-methods"] == "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     assert(response.headers["access-control-allow-headers"] == "Authorization");
+}
+
+// Built-in template engine unit tests.
+unittest
+{
+    import std.json : JSONValue, parseJSON;
+    import dex.view : renderTemplate, escapeHtml;
+
+    // 1. Variable interpolation & HTML escaping
+    auto locals1 = parseJSON(`{"name": "Alice & Bob <tag>", "raw": "<b>bold</b>"}`);
+    string tpl1 = "Hello, {{name}}! {{{raw}}} {{&raw}}";
+    string out1 = renderTemplate(tpl1, locals1);
+    assert(out1 == "Hello, Alice &amp; Bob &lt;tag&gt;! <b>bold</b> <b>bold</b>");
+
+    // 2. Dot notation & index access
+    auto locals2 = parseJSON(`{"user": {"profile": {"city": "Vilnius"}}, "tags": ["dlang", "dex"]}`);
+    string tpl2 = "City: {{user.profile.city}}, First tag: {{tags.0}}, Second tag: {{tags.1}}";
+    string out2 = renderTemplate(tpl2, locals2);
+    assert(out2 == "City: Vilnius, First tag: dlang, Second tag: dex");
+
+    // 3. Conditionals (if, unless, else, mustache inverted ^)
+    auto locals3 = parseJSON(`{"admin": true, "guest": false, "emptyList": []}`);
+    string tpl3 = "{{#if admin}}Admin{{else}}User{{/if}} | {{#unless guest}}NotGuest{{/unless}} | {{^emptyList}}NoItems{{else}}HasItems{{/emptyList}}";
+    string out3 = renderTemplate(tpl3, locals3);
+    assert(out3 == "Admin | NotGuest | NoItems");
+
+    // 4. Loops (array of objects, primitives, @index, @first, @last)
+    auto locals4 = parseJSON(`{"items": [{"name": "A"}, {"name": "B"}], "tags": ["one", "two"]}`);
+    string tpl4 = "{{#each items}}[{{@index}}:{{name}}:first={{@first}}:last={{@last}}]{{/each}} | {{#each tags}}({{this}}){{/each}}";
+    string out4 = renderTemplate(tpl4, locals4);
+    assert(out4 == "[0:A:first=true:last=false][1:B:first=false:last=true] | (one)(two)");
+
+    // 5. Comments
+    string tpl5 = "Start{{! this is a comment }}Middle{{!-- long comment --}}End";
+    string out5 = renderTemplate(tpl5, JSONValue(string[string].init));
+    assert(out5 == "StartMiddleEnd");
+}
+
+// End-to-end view rendering with App and res.render()
+unittest
+{
+    import std.datetime.systime : Clock;
+    import std.file : mkdirRecurse, rmdirRecurse, tempDir, write;
+    import std.path : buildPath;
+
+    string testViewsDir = buildPath(tempDir(), "dex_test_views_" ~ to!string(Clock.currTime().toUnixTime()));
+    mkdirRecurse(testViewsDir);
+    scope (exit)
+    {
+        if (exists(testViewsDir))
+            rmdirRecurse(testViewsDir);
+    }
+
+    // Create partial and main template
+    write(buildPath(testViewsDir, "header.html"), "<header>Title: {{title}}</header>");
+    write(buildPath(testViewsDir, "profile.html"), "{{> header}}\n<main>Welcome, {{name}}!</main>");
+
+    struct UserLocals
+    {
+        string title;
+        string name;
+    }
+
+    auto app = new App;
+    scope (exit) app.close();
+
+    app.setViews(testViewsDir);
+    app.cacheViews = true;
+
+    app.get("/profile", (req, res)
+    {
+        res.render("profile", UserLocals("My App", "Sample User"));
+    });
+
+    // Custom engine test
+    app.engine("upper", (path, locals)
+    {
+        import std.file : readText;
+        import std.string : toUpper;
+        return readText(path).toUpper();
+    });
+    write(buildPath(testViewsDir, "custom.upper"), "custom content");
+    app.get("/custom", (req, res)
+    {
+        res.render("custom.upper");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // GET /profile: verify rendered HTML and Content-Type
+    connection.send("GET", "/profile");
+    auto response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["content-type"] == "text/html; charset=utf-8");
+    assert(response.body == "<header>Title: My App</header>\n<main>Welcome, Sample User!</main>");
+
+    // GET /custom: verify custom engine
+    connection.send("GET", "/custom");
+    response = connection.read();
+    assert(response.status == 200);
+    assert(response.body == "CUSTOM CONTENT");
+}
+
+// Built-in compression middleware tests.
+unittest
+{
+    import std.array : replicate;
+    import std.zlib : HeaderFormat, UnCompress;
+
+    auto app = new App;
+    scope (exit) app.close();
+
+    // Use compression with small threshold (50 bytes) for testing
+    CompressionOptions compOpts;
+    compOpts.threshold = 50;
+    app.use(compression(compOpts));
+
+    string largePayload = "Hello, dex compression world! ".replicate(20); // ~600 bytes
+    string smallPayload = "short"; // 5 bytes
+
+    app.get("/large", (req, res)
+    {
+        res.type("text/plain").send(largePayload);
+    });
+
+    app.get("/small", (req, res)
+    {
+        res.type("text/plain").send(smallPayload);
+    });
+
+    app.get("/binary", (req, res)
+    {
+        res.type("bin").send(largePayload);
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // 1. Gzip compression on large compressible payload
+    connection.send("GET", "/large", null, null, "Accept-Encoding: gzip, deflate\r\n");
+    auto response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["content-encoding"] == "gzip");
+    assert(response.headers["vary"] == "Accept-Encoding");
+    auto ucmp = new UnCompress(HeaderFormat.gzip);
+    auto decompressed = cast(string) (ucmp.uncompress(cast(ubyte[]) response.body) ~ ucmp.flush());
+    assert(decompressed == largePayload);
+
+    // 2. Deflate compression when client only accepts deflate
+    connection.send("GET", "/large", null, null, "Accept-Encoding: deflate\r\n");
+    response = connection.read();
+    assert(response.status == 200);
+    assert(response.headers["content-encoding"] == "deflate");
+    auto ucmpDeflate = new UnCompress(HeaderFormat.deflate);
+    decompressed = cast(string) (ucmpDeflate.uncompress(cast(ubyte[]) response.body) ~ ucmpDeflate.flush());
+    assert(decompressed == largePayload);
+
+    // 3. Below threshold: must remain uncompressed
+    connection.send("GET", "/small", null, null, "Accept-Encoding: gzip\r\n");
+    response = connection.read();
+    assert(response.status == 200);
+    assert("content-encoding" !in response.headers);
+    assert(response.body == smallPayload);
+
+    // 4. Incompressible binary type: must remain uncompressed
+    connection.send("GET", "/binary", null, null, "Accept-Encoding: gzip\r\n");
+    response = connection.read();
+    assert(response.status == 200);
+    assert("content-encoding" !in response.headers);
+    assert(response.body == largePayload);
+
+    // 5. No Accept-Encoding header: must remain uncompressed
+    connection.send("GET", "/large");
+    response = connection.read();
+    assert(response.status == 200);
+    assert("content-encoding" !in response.headers);
+    assert(response.body == largePayload);
+}
+
+// Built-in rate limiting middleware tests.
+unittest
+{
+    import core.time : dur;
+
+    auto app = new App;
+    scope (exit) app.close();
+
+    RateLimitOptions opts;
+    opts.max = 2; // Allow only 2 requests
+    opts.window = 5.dur!"seconds";
+    opts.standardHeaders = true;
+    opts.legacyHeaders = true;
+    app.use(rateLimit(opts));
+
+    app.get("/test", (req, res)
+    {
+        res.send("OK");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto connection = TestConnection.connect(app.port);
+    scope (exit) connection.close();
+
+    // 1. First request -> status 200, remaining = 1
+    connection.send("GET", "/test");
+    auto res1 = connection.read();
+    assert(res1.status == 200);
+    assert(res1.body == "OK");
+    assert(res1.headers["ratelimit-limit"] == "2");
+    assert(res1.headers["ratelimit-remaining"] == "1");
+    assert("ratelimit-reset" in res1.headers);
+    assert(res1.headers["x-ratelimit-limit"] == "2");
+    assert(res1.headers["x-ratelimit-remaining"] == "1");
+
+    // 2. Second request -> status 200, remaining = 0
+    connection.send("GET", "/test");
+    auto res2 = connection.read();
+    assert(res2.status == 200);
+    assert(res2.headers["ratelimit-remaining"] == "0");
+
+    // 3. Third request -> status 429 Too Many Requests
+    connection.send("GET", "/test");
+    auto res3 = connection.read();
+    assert(res3.status == 429);
+    assert(res3.body == "Too Many Requests, please try again later.");
+    assert("retry-after" in res3.headers);
+    assert(res3.headers["ratelimit-remaining"] == "0");
+}
+
+// Per-route body size limits (`bodyLimit` middleware): both raising above
+// and tightening below `app.maxBodySize`, including chunked & 100-continue.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.maxBodySize = 16;
+
+    app.post("/default", (req, res) { res.send(req.rawBody); });
+    app.post("/upload", bodyLimit(128), (req, res) { res.send(req.rawBody); });
+    app.post("/tight", bodyLimit(4), (req, res) { res.send(req.rawBody); });
+    app.post("/ignore", (req, res) { res.send("ok"); });
+    app.get("/after", (req, res) { res.send("after"); });
+
+    app.start(0, "127.0.0.1");
+
+    // 1. Default route rejects payloads > 16 bytes
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("POST", "/default", replicate("a", 32), "text/plain");
+        auto res = conn.read();
+        assert(res.status == 413);
+    }
+
+    // 2. Upload route allows 32 bytes (> app.maxBodySize) and rejects 200 (> 128)
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        const payload32 = replicate("b", 32);
+        conn.send("POST", "/upload", payload32, "text/plain");
+        auto res1 = conn.read();
+        assert(res1.status == 200);
+        assert(res1.body == payload32);
+
+        conn.send("POST", "/upload", replicate("c", 200), "text/plain");
+        auto res2 = conn.read();
+        assert(res2.status == 413);
+    }
+
+    // 3. Tight route caps at 4 bytes (< app.maxBodySize)
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("POST", "/tight", "1234", "text/plain");
+        assert(conn.read().status == 200);
+
+        conn.send("POST", "/tight", "12345", "text/plain");
+        assert(conn.read().status == 413);
+    }
+
+    // 4. Chunked body respects per-route bodyLimit
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        const body32 = replicate("z", 32);
+        conn.sendRaw("POST /upload HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Transfer-Encoding: chunked\r\n\r\n" ~
+                     "20\r\n" ~ body32 ~ "\r\n0\r\n\r\n");
+        conn.lastMethod = "POST";
+        auto res = conn.read();
+        assert(res.status == 200);
+        assert(res.body == body32);
+
+        conn.sendRaw("POST /tight HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Transfer-Encoding: chunked\r\n\r\n" ~
+                     "5\r\n12345\r\n0\r\n\r\n");
+        conn.lastMethod = "POST";
+        assert(conn.read().status == 413);
+    }
+
+    // 5. Expect: 100-continue rejects early when exceeding tight limit,
+    //    and succeeds when permitted by upload limit.
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.sendRaw("POST /tight HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Content-Length: 10\r\n" ~
+                     "Expect: 100-continue\r\n\r\n");
+        conn.lastMethod = "POST";
+        auto res = conn.read();
+        assert(res.status == 413);
+        assert(res.headers["connection"] == "close");
+    }
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        const payload32 = replicate("e", 32);
+        conn.sendRaw("POST /upload HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Content-Length: 32\r\n" ~
+                     "Expect: 100-continue\r\n\r\n");
+        conn.lastMethod = "POST";
+        assert(conn.read().status == 100);
+        conn.sendRaw(payload32);
+        auto res = conn.read();
+        assert(res.status == 200);
+        assert(res.body == payload32);
+    }
+
+    // 6. Keep-alive stays synchronized when handler ignores unread body within limit
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("POST", "/ignore", "12345678", "text/plain");
+        assert(conn.read().body == "ok");
+        conn.send("GET", "/after");
+        assert(conn.read().body == "after");
+    }
+}
+
+// Graceful shutdown: waits for in-flight requests, sends `Connection: close`,
+// immediately closes idle keep-alive connections, and honors POSIX signals.
+unittest
+{
+    import core.sync.condition : Condition;
+    import core.sync.mutex : Mutex;
+    import core.time : dur, MonoTime;
+
+    auto app = new App;
+    scope (exit) app.close();
+    app.shutdownTimeout = dur!"seconds"(2);
+
+    auto gateMutex = new Mutex;
+    auto enteredCond = new Condition(gateMutex);
+    bool handlerEntered = false;
+
+    app.get("/slow", (req, res)
+    {
+        synchronized (gateMutex)
+        {
+            handlerEntered = true;
+            enteredCond.notifyAll();
+        }
+        Thread.sleep(dur!"msecs"(150));
+        res.send("finished-gracefully");
+    });
+    app.get("/idle", (req, res) { res.send("idle-ok"); });
+
+    app.start(0, "127.0.0.1");
+
+    // Open an idle keep-alive connection first
+    auto idleConn = TestConnection.connect(app.port);
+    scope (exit) idleConn.close();
+    idleConn.send("GET", "/idle");
+    assert(idleConn.read().body == "idle-ok");
+
+    // Start an in-flight request on a second connection
+    auto slowConn = TestConnection.connect(app.port);
+    scope (exit) slowConn.close();
+    slowConn.send("GET", "/slow");
+
+    synchronized (gateMutex)
+    {
+        while (!handlerEntered)
+            enteredCond.wait();
+    }
+
+    // Trigger graceful shutdown while `/slow` is in-flight and `idleConn` is idle
+    const shutdownStart = MonoTime.currTime;
+    app.close();
+    const shutdownElapsed = MonoTime.currTime - shutdownStart;
+
+    // Must have waited for `/slow` (~150ms) rather than cutting it off or stalling 2s
+    assert(shutdownElapsed >= dur!"msecs"(100));
+    assert(shutdownElapsed < dur!"seconds"(1));
+
+    // In-flight request must have completed with `Connection: close`
+    auto slowRes = slowConn.read();
+    assert(slowRes.status == 200);
+    assert(slowRes.body == "finished-gracefully");
+    assert(slowRes.headers["connection"] == "close");
+
+    // Server must no longer be listening
+    assert(!app.isListening);
+
+    // Test POSIX SIGTERM triggers graceful shutdown inside `listen()`
+    version (Posix)
+    {
+        import core.sys.posix.signal : kill, SIGTERM;
+        import core.sys.posix.unistd : getpid;
+
+        auto sigApp = new App;
+        sigApp.shutdownTimeout = dur!"seconds"(2);
+        sigApp.get("/ping", (req, res) { res.send("pong"); });
+
+        auto readyMutex = new Mutex;
+        auto readyCond = new Condition(readyMutex);
+        bool listening = false;
+        ushort sigPort = 0;
+
+        auto listenerThread = new Thread({
+            sigApp.listen(0, "127.0.0.1", ()
+            {
+                synchronized (readyMutex)
+                {
+                    sigPort = sigApp.port;
+                    listening = true;
+                    readyCond.notifyAll();
+                }
+            });
+        });
+        listenerThread.start();
+
+        synchronized (readyMutex)
+        {
+            while (!listening)
+                readyCond.wait();
+        }
+
+        auto conn = TestConnection.connect(sigPort);
+        scope (exit) conn.close();
+        conn.send("GET", "/ping");
+        assert(conn.read().body == "pong");
+
+        kill(getpid(), SIGTERM);
+        listenerThread.join();
+        assert(!sigApp.isListening);
+    }
 }

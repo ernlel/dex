@@ -1,0 +1,11 @@
+{
+    "name": "api-server",
+    "description": "Production-structured REST API microservice with modular routing, Bearer authentication, validation, and security headers",
+    "targetType": "executable",
+    "dependencies": {
+        "dex": {
+            "path": "../.."
+        }
+    }
+}
+

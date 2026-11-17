@@ -1,8 +1,24 @@
-# dex
+<p align="center">
+  <a href="https://ernlel.github.io/dex/">
+    <img src="docs/assets/dex-icon.png" width="120" height="120" alt="dex logo">
+  </a>
+</p>
 
-[![CI](https://github.com/ernlel/dex/actions/workflows/ci.yml/badge.svg)](https://github.com/ernlel/dex/actions/workflows/ci.yml)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://ernlel.github.io/dex/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<h1 align="center">dex</h1>
+
+<p align="center">
+  <b>Express-inspired, ergonomic web framework for the D programming language.</b><br>
+  Zero dependencies outside Phobos · Built-in HTTP/1.1 server · Native compiled speed
+</p>
+
+<p align="center">
+  <a href="https://github.com/ernlel/dex/actions/workflows/ci.yml"><img src="https://github.com/ernlel/dex/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://ernlel.github.io/dex/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg" alt="Documentation"></a>
+  <a href="https://github.com/ernlel/dex/releases"><img src="https://img.shields.io/github/v/release/ernlel/dex?color=orange" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+</p>
+
+---
 
 Express-inspired web framework for D. Small surface area, zero dependencies
 outside Phobos, and a built-in HTTP/1.1 server.
@@ -24,7 +40,7 @@ void main()
     app.get("/users/:id", (req, res) {
         res.json([
             "id": req.params["id"],
-            "name": "Ada"
+            "name": "User Name"
         ]);
     });
 
@@ -50,12 +66,37 @@ void main()
 - Reflection-based JSON serialization for structs, classes, arrays,
   associative arrays, enums, and `Nullable`.
 - HTTP/1.1 keep-alive, chunked request bodies, `Expect: 100-continue`,
-  request size limits, and a capped thread-per-connection server.
+  configurable and per-route request size limits (`bodyLimit`), graceful
+  shutdown with POSIX signal hooks, and a capped thread-per-connection server.
+- Built-in middleware: `logger`, `serveStatic` (with chunked range streaming),
+  `cors`, `securityHeaders`, `compression` (gzip/deflate), `rateLimit`, and
+  `bodyLimit`.
+- Built-in Handlebars/Mustache template engine (`res.render`) with variables,
+  conditionals (`#if`, `#unless`), loops (`#each`), partials (`{{> partial}}`),
+  and automatic XSS escaping.
 - No third-party packages: only Phobos and druntime.
 
 ## Install
 
-Add this repository as a path dependency:
+### Option 1: Using DUB (Package Manager)
+
+Add `dex` to your `dub.json`:
+
+```sh
+dub add dex
+```
+
+Or add it to your `dub.json` dependencies manually:
+
+```json
+{
+    "dependencies": {
+        "dex": "~>0.4.0"
+    }
+}
+```
+
+Or as a local path dependency during development:
 
 ```json
 {
@@ -67,13 +108,86 @@ Add this repository as a path dependency:
 }
 ```
 
-Then:
+Then run:
 
 ```sh
 dub run
 ```
 
-Requires a recent D compiler and Dub (tested with DMD 2.113 / Dub 1.42).
+---
+
+### Option 2: Manual Installation & Compilation (Without DUB)
+
+Because `dex` has **zero external runtime dependencies** (it uses only standard Phobos and druntime), you do not need DUB to build or run applications. You can compile directly with **DMD** or **LDC**.
+
+#### A. Direct Compilation with `-i` (Recommended)
+
+Clone `dex` into your project or add it as a git submodule:
+
+```sh
+git clone https://github.com/ernlel/dex.git
+# or: git submodule add https://github.com/ernlel/dex.git
+```
+
+Use D's compiler-assisted dependency resolution flag (`-i`) to automatically discover, compile, and link `dex` alongside your application:
+
+```sh
+# Using DMD:
+dmd -i -Idex/source app.d -of=myapp
+
+# Using LDC:
+ldc2 -i -Idex/source app.d -of=myapp
+```
+
+Run your application:
+
+```sh
+./myapp
+```
+
+#### B. Build as a Static Library (`libdex.a`) via Makefile
+
+You can build `libdex.a` using the included `Makefile`:
+
+```sh
+git clone https://github.com/ernlel/dex.git
+cd dex
+
+# Build release static library libdex.a:
+make
+
+# Run the test suite:
+make test
+
+# (Optional) Install libdex.a and module interfaces to /usr/local:
+sudo make install
+```
+
+Compile and link your application against the static library:
+
+```sh
+# If installed system-wide:
+dmd -I/usr/local/include/d/dex app.d -L-ldex -of=myapp
+
+# Or using the local archive file:
+dmd -Idex/source app.d dex/libdex.a -of=myapp
+```
+
+#### C. Download Pre-Packaged Release Archives
+
+If you prefer not to use `git clone`, you can download minimal standalone release archives (~38 KiB) directly from the [GitHub Releases](https://github.com/ernlel/dex/releases) page. These contain only the essential library files (`source/dex/*.d`), `LICENSE`, `dub.json`, and `Makefile`:
+
+```sh
+# Download and extract the minimal source package:
+curl -fsSL https://github.com/ernlel/dex/releases/download/v0.4.0/dex-0.4.0.tar.gz | tar -xz
+
+# Compile your app against the unpacked sources:
+dmd -i -Idex-0.4.0/source app.d -of=myapp
+```
+
+Precompiled Linux x86_64 binaries (`dex-0.4.0-linux-x86_64.tar.gz`) containing `libdex.a` are also available on each release.
+
+Requires a recent D compiler (tested with DMD 2.113 / LDC 1.40).
 
 ## Routing
 
@@ -276,7 +390,7 @@ struct User
 
 enum Role { admin, user }
 
-res.json(User(1, "Ada", true));
+res.json(User(1, "User Name", true));
 ```
 
 Struct and class fields are serialized by name (including inherited fields).
@@ -317,7 +431,9 @@ connection threads.
 | Field | Default | Meaning |
 |---|---|---|
 | `idleTimeout` | 60 seconds | Keep-alive / socket read timeout |
-| `maxBodySize` | 10 MiB | Maximum request body |
+| `shutdownTimeout` | 5 seconds | Graceful shutdown drain timeout for in-flight requests |
+| `handleSignals` | true | Handle POSIX `SIGINT`/`SIGTERM` in `listen()` / `wait()` |
+| `maxBodySize` | 10 MiB | Maximum request body (overridable per route via `bodyLimit`) |
 | `maxHeaderSize` | 64 KiB | Maximum header block |
 | `maxConnections` | 1024 | Concurrent connections (0 = unlimited) |
 | `showStackTraces` | false | Include exception text in 500 responses |
@@ -356,33 +472,71 @@ TLS is not implemented; terminate TLS at a reverse proxy.
 
 ## Examples
 
-- `examples/hello` — basic routes, parameters, JSON, logger.
-- `examples/todos` — in-memory JSON CRUD API with a router and a mutex.
-- `examples/auth-cors` — Basic Auth plus CORS/preflight middleware.
+- `examples/hello` — minimal hello world with basic routes, parameters, JSON, and logger.
+- `examples/todos` — thread-safe in-memory JSON CRUD API with sub-routers and mutex locking.
+- `examples/api-server` — production-ready REST microservice featuring Bearer token auth, modular sub-routers, query filtering, request validation, CORS, security headers, and structured JSON error responses.
+- `examples/file-server` — static asset and chunked media streaming server with custom cache headers, file metadata API, and HTTP Range request (`206 Partial Content`) support.
+- `examples/views` — server-side HTML rendering using dex's built-in Handlebars/Mustache template engine, partials, and typed D structs.
 
 ```sh
 cd examples/hello && dub run
 cd examples/todos && dub run
-cd examples/auth-cors && dub run
+cd examples/api-server && dub run
+cd examples/file-server && dub run
+cd examples/views && dub run
 ```
 
-`examples/auth-cors` reads optional environment variables:
+### Testing `examples/api-server`:
 
 ```sh
-BASIC_AUTH_USER=admin BASIC_AUTH_PASS=secret CORS_ORIGIN='*' \
-    dub run
+# Health check
+curl -i http://localhost:3000/health
+
+# List products
+curl -i http://localhost:3000/api/v1/products
+
+# Filter products by category and search term
+curl -i "http://localhost:3000/api/v1/products?category=electronics&search=mouse"
+
+# Authenticate and get a Bearer token
+curl -i -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "dexpass"}'
+
+# Create a product (requires Bearer token)
+curl -i -X POST http://localhost:3000/api/v1/products \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer secret-token-123" \
+  -d '{"name": "Wireless Headset", "category": "electronics", "price": 99.99}'
 ```
 
-With the defaults:
+### Testing `examples/file-server`:
 
 ```sh
-curl -i http://localhost:3000/api/me
-curl -u admin:secret http://localhost:3000/api/me
+# Fetch static homepage
+curl -i http://localhost:3000/
 
-curl -i -X OPTIONS http://localhost:3000/api/echo \
-    -H 'Origin: https://app.example' \
-    -H 'Access-Control-Request-Method: POST' \
-    -H 'Access-Control-Request-Headers: content-type, authorization'
+# Fetch file metadata list
+curl -i http://localhost:3000/api/files
+
+# Test HTTP Range streaming (206 Partial Content)
+curl -i -H "Range: bytes=0-20" http://localhost:3000/media.txt
+
+# Download file as attachment
+curl -i http://localhost:3000/download/sample.txt
+```
+
+### Testing `examples/views`:
+
+```sh
+# Render homepage template with typed D struct locals
+curl -i http://localhost:3000/
+
+# Render about page
+curl -i http://localhost:3000/about
+
+# Render projects page
+curl -i http://localhost:3000/projects
 ```
 
 ## Landing page

@@ -1,13 +1,16 @@
 /// Built-in middleware.
 module dex.middleware;
 
-import core.time : MonoTime;
-import std.datetime : SysTime;
+import core.sync.mutex : Mutex;
+import core.time : Duration, dur, MonoTime, seconds;
+import std.conv : to;
+import std.datetime : Clock, SysTime;
 import std.file : isDir, isFile, read, timeLastModified;
 import std.format : format;
 import std.path : absolutePath, buildNormalizedPath, dirSeparator, extension;
 import std.stdio : stderr;
-import std.string : indexOf, split, startsWith;
+import std.string : indexOf, split, startsWith, strip, toLower;
+import std.zlib : Compress, HeaderFormat;
 
 import dex.http : httpDate;
 import dex.request : Request;
@@ -223,6 +226,355 @@ Middleware securityHeaders(SecurityOptions options = SecurityOptions.init)
             response.set("cross-origin-resource-policy", options.crossOriginResourcePolicy);
         if (options.strictTransportSecurity.length && !response.has("strict-transport-security"))
             response.set("strict-transport-security", options.strictTransportSecurity);
+        next();
+    };
+}
+
+/// Options for `compression` middleware.
+struct CompressionOptions
+{
+    /// Minimum response body byte size before compression is applied.
+    /// Defaults to 1024 bytes (1 KiB). Smaller payloads are often larger compressed.
+    size_t threshold = 1024;
+
+    /// Compression level from 1 (fastest) to 9 (best compression), or -1 for zlib default.
+    int level = -1;
+
+    /// Filter predicate to determine if a response should be compressed based on Content-Type.
+    /// If null, uses the default compressible MIME type filter.
+    bool delegate(string contentType) filter;
+}
+
+/// Compression middleware: applies gzip or deflate encoding to compressible responses.
+Middleware compression(CompressionOptions options = CompressionOptions.init)
+{
+    return (Request request, Response response, Next next)
+    {
+        next();
+
+        // Downstream handlers have run.
+        if (!response.finished || response.has("content-encoding"))
+            return;
+
+        // Skip responses with no body or streaming disk files
+        if (response._body.length < options.threshold || response._filePath.length != 0)
+            return;
+
+        // Status codes that must not have a body
+        const status = response.statusCode;
+        if (status < 200 || status == 204 || status == 304)
+            return;
+
+        // Check if content-type is compressible
+        string ct = response.get("content-type");
+        if (ct is null)
+            ct = "text/html";
+
+        if (options.filter !is null)
+        {
+            if (!options.filter(ct))
+                return;
+        }
+        else if (!isCompressible(ct))
+        {
+            return;
+        }
+
+        // Check client Accept-Encoding
+        string acceptEncoding = request.get("accept-encoding");
+        if (acceptEncoding is null)
+            return;
+
+        string selectedEncoding;
+        HeaderFormat format;
+
+        if (acceptsEncoding(acceptEncoding, "gzip"))
+        {
+            selectedEncoding = "gzip";
+            format = HeaderFormat.gzip;
+        }
+        else if (acceptsEncoding(acceptEncoding, "deflate"))
+        {
+            selectedEncoding = "deflate";
+            format = HeaderFormat.deflate;
+        }
+        else
+        {
+            return;
+        }
+
+        try
+        {
+            auto cmp = options.level >= 0
+                ? new Compress(options.level, format)
+                : new Compress(format);
+
+            auto compressed = cast(const(ubyte)[]) (cmp.compress(response._body) ~ cmp.flush());
+
+            // Only use compressed if it actually reduced the payload size
+            if (compressed.length < response._body.length)
+            {
+                response.setHeaderDirect("content-encoding", selectedEncoding);
+                response.appendHeaderDirect("vary", "Accept-Encoding");
+                response.setBodyDirect(compressed);
+            }
+        }
+        catch (Exception)
+        {
+            // Fall back gracefully to uncompressed body
+        }
+    };
+}
+
+/// Checks whether a MIME content-type string represents compressible data (text, json, js, xml, svg, wasm).
+bool isCompressible(string contentType) pure
+{
+    string ct = contentType.toLower;
+    auto semi = ct.indexOf(';');
+    if (semi >= 0)
+        ct = ct[0 .. semi].strip;
+
+    if (ct.startsWith("text/"))
+        return true;
+    if (ct == "application/json" || ct == "application/ld+json")
+        return true;
+    if (ct == "application/javascript" || ct == "application/x-javascript")
+        return true;
+    if (ct == "application/xml" || ct == "application/atom+xml" || ct == "application/rss+xml")
+        return true;
+    if (ct == "image/svg+xml")
+        return true;
+    if (ct == "application/wasm")
+        return true;
+
+    return false;
+}
+
+/// Checks whether the client's `Accept-Encoding` header accepts the specified encoding.
+bool acceptsEncoding(string header, string target) pure
+{
+    foreach (part; header.split(','))
+    {
+        string token = part.strip.toLower;
+        auto semi = token.indexOf(';');
+        if (semi >= 0)
+        {
+            string enc = token[0 .. semi].strip;
+            string q = token[semi + 1 .. $].strip;
+            if (enc == target && q != "q=0" && q != "q=0.0" && q != "q=0.00" && q != "q=0.000")
+                return true;
+        }
+        else if (token == target || token == "*")
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Options for `rateLimit` middleware.
+struct RateLimitOptions
+{
+    /// Time window for rate limiting. Defaults to 60 seconds (1 minute).
+    Duration window = 60.dur!"seconds";
+
+    /// Maximum number of requests allowed per window per key. Defaults to 60.
+    size_t max = 60;
+
+    /// HTTP status code sent when limit is exceeded. Defaults to 429 (Too Many Requests).
+    ushort statusCode = 429;
+
+    /// Response message or payload sent when limit is exceeded.
+    /// Defaults to "Too Many Requests, please try again later."
+    string message = "Too Many Requests, please try again later.";
+
+    /// Whether to send standard RFC draft `RateLimit-*` headers (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`).
+    /// Defaults to true.
+    bool standardHeaders = true;
+
+    /// Whether to send legacy `X-RateLimit-*` headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`).
+    /// Defaults to false.
+    bool legacyHeaders = false;
+
+    /// Custom key generator based on the request.
+    /// Defaults to client IP address (or "127.0.0.1" if unresolved).
+    string delegate(Request) keyGenerator = null;
+
+    /// Custom handler called when rate limit is exceeded.
+    /// If null, sets `options.statusCode`, `Content-Type: text/plain`, and sends `options.message`.
+    void delegate(Request, Response) handler = null;
+
+    /// Custom skip predicate. If true, the request bypasses rate limiting.
+    bool delegate(Request) skip = null;
+}
+
+private struct RateLimitRecord
+{
+    size_t hits;
+    long resetTime;
+}
+
+private class RateLimiterStore
+{
+    private RateLimitRecord[string] _records;
+    private Mutex _mutex;
+    private long _lastCleanup;
+
+    this()
+    {
+        _mutex = new Mutex;
+        _lastCleanup = Clock.currTime.toUnixTime();
+    }
+
+    RateLimitRecord hit(string key, long windowSeconds, size_t maxHits, out bool exceeded, out size_t remaining, out long resetSeconds)
+    {
+        const now = Clock.currTime.toUnixTime();
+        synchronized (_mutex)
+        {
+            // Periodic cleanup every 60 seconds or when record table exceeds 1000 items
+            if (now - _lastCleanup > 60 || _records.length > 1000)
+            {
+                string[] expired;
+                foreach (k, ref rec; _records)
+                {
+                    if (now >= rec.resetTime)
+                        expired ~= k;
+                }
+                foreach (k; expired)
+                    _records.remove(k);
+                _lastCleanup = now;
+            }
+
+            if (auto rec = key in _records)
+            {
+                if (now >= rec.resetTime)
+                {
+                    rec.hits = 1;
+                    rec.resetTime = now + windowSeconds;
+                }
+                else
+                {
+                    rec.hits++;
+                }
+                remaining = rec.hits <= maxHits ? maxHits - rec.hits : 0;
+                resetSeconds = rec.resetTime > now ? rec.resetTime - now : 0;
+                exceeded = rec.hits > maxHits;
+                return *rec;
+            }
+            else
+            {
+                RateLimitRecord rec;
+                rec.hits = 1;
+                rec.resetTime = now + windowSeconds;
+                _records[key] = rec;
+                remaining = maxHits > 0 ? maxHits - 1 : 0;
+                resetSeconds = windowSeconds;
+                exceeded = rec.hits > maxHits;
+                return rec;
+            }
+        }
+    }
+}
+
+/// Rate limiting middleware: restricts request volume per client key within a sliding/fixed time window.
+///
+/// ---
+/// app.use(rateLimit());
+///
+/// RateLimitOptions options;
+/// options.max = 100;
+/// options.window = 15.dur!"minutes";
+/// app.use("/api", rateLimit(options));
+/// ---
+Middleware rateLimit(RateLimitOptions options = RateLimitOptions.init)
+{
+    auto store = new RateLimiterStore;
+    const windowSeconds = options.window.total!"seconds" > 0 ? options.window.total!"seconds" : 1;
+
+    return (Request request, Response response, Next next)
+    {
+        if (options.skip !is null && options.skip(request))
+        {
+            next();
+            return;
+        }
+
+        string key;
+        if (options.keyGenerator !is null)
+        {
+            key = options.keyGenerator(request);
+        }
+        else
+        {
+            if (request.ip.length)
+                key = request.ip;
+            else if (auto fwd = request.get("x-forwarded-for"))
+            {
+                auto comma = fwd.indexOf(',');
+                key = (comma >= 0 ? fwd[0 .. comma] : fwd).strip;
+            }
+            else
+            {
+                key = "127.0.0.1";
+            }
+        }
+
+        bool exceeded;
+        size_t remaining;
+        long resetSeconds;
+        auto record = store.hit(key, windowSeconds, options.max, exceeded, remaining, resetSeconds);
+
+        if (options.standardHeaders)
+        {
+            response.set("ratelimit-limit", options.max.to!string);
+            response.set("ratelimit-remaining", remaining.to!string);
+            response.set("ratelimit-reset", resetSeconds.to!string);
+        }
+
+        if (options.legacyHeaders)
+        {
+            response.set("x-ratelimit-limit", options.max.to!string);
+            response.set("x-ratelimit-remaining", remaining.to!string);
+            response.set("x-ratelimit-reset", record.resetTime.to!string);
+        }
+
+        if (exceeded)
+        {
+            response.set("retry-after", resetSeconds.to!string);
+            if (options.handler !is null)
+            {
+                options.handler(request, response);
+            }
+            else
+            {
+                response.status(options.statusCode)
+                        .type("text/plain; charset=utf-8")
+                        .send(options.message);
+            }
+            return;
+        }
+
+        next();
+    };
+}
+
+/// Override `app.maxBodySize` for a specific route or sub-router.
+///
+/// Allows capping individual routes tighter than the global default, or
+/// permitting larger payloads on dedicated upload endpoints. Throws
+/// `HttpError` (413) if the request body exceeds `maxBytes`.
+///
+/// ---
+/// app.maxBodySize = 64 * 1024; // 64 KiB default
+/// app.post("/upload", bodyLimit(50 * 1024 * 1024), (req, res) {
+///     res.send("uploaded");
+/// });
+/// ---
+Middleware bodyLimit(size_t maxBytes)
+{
+    return (Request request, Response response, Next next)
+    {
+        request.setBodyLimit(maxBytes);
         next();
     };
 }

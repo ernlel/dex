@@ -4,7 +4,7 @@ module dex.server;
 import core.atomic : atomicLoad, atomicOp, atomicStore;
 import core.sync.mutex : Mutex;
 import core.thread : Thread;
-import core.time : Duration, dur;
+import core.time : Duration, dur, MonoTime;
 import std.algorithm.comparison : max, min;
 import std.algorithm.mutation : remove;
 import std.array : appender, join;
@@ -110,7 +110,7 @@ package class HttpServer
         }
     }
 
-    package void close()
+    package void close(Duration timeout = Duration.zero)
     {
         synchronized (_lifecycleMutex)
         {
@@ -126,26 +126,7 @@ package class HttpServer
             catch (Throwable) {}
         }
 
-        Connection[] snapshot;
-        synchronized (_mutex)
-        {
-            snapshot = _connections;
-            _connections = null;
-        }
-
-        foreach (ref connection; snapshot)
-        {
-            try connection.socket.shutdown(SocketShutdown.BOTH);
-            catch (Throwable) {}
-        }
-        foreach (ref connection; snapshot)
-        {
-            if (connection.thread is Thread.getThis())
-                continue;
-            try connection.thread.join();
-            catch (Throwable) {}
-        }
-
+        // Stop accepting new OS-level connections immediately.
         synchronized (_lifecycleMutex)
         {
             if (_listener !is null)
@@ -154,6 +135,77 @@ package class HttpServer
                 catch (Throwable) {}
                 _listener = null;
             }
+        }
+
+        const selfThread = Thread.getThis();
+
+        // Shut down idle connections immediately, and wait up to `timeout` for
+        // in-flight requests to finish and receive `Connection: close`.
+        if (timeout > Duration.zero)
+        {
+            const deadline = MonoTime.currTime + timeout;
+            while (true)
+            {
+                bool anyInFlight = false;
+                Connection[] idleToClose;
+                synchronized (_mutex)
+                {
+                    foreach (connection; _connections)
+                    {
+                        if (connection.thread is selfThread)
+                            continue;
+                        if (atomicLoad(connection.inFlight))
+                        {
+                            anyInFlight = true;
+                        }
+                        else if (!atomicLoad(connection.socketShutdown))
+                        {
+                            atomicStore(connection.socketShutdown, true);
+                            idleToClose ~= connection;
+                        }
+                    }
+                }
+
+                foreach (connection; idleToClose)
+                {
+                    try connection.socket.shutdown(SocketShutdown.BOTH);
+                    catch (Throwable) {}
+                }
+
+                if (!anyInFlight || MonoTime.currTime >= deadline)
+                    break;
+                Thread.sleep(dur!"msecs"(10));
+            }
+        }
+
+        Connection[] snapshot;
+        synchronized (_mutex)
+        {
+            snapshot = _connections;
+            _connections = null;
+        }
+
+        foreach (connection; snapshot)
+        {
+            if (connection.thread is selfThread)
+                continue;
+            if (!atomicLoad(connection.socketShutdown))
+            {
+                atomicStore(connection.socketShutdown, true);
+                try connection.socket.shutdown(SocketShutdown.BOTH);
+                catch (Throwable) {}
+            }
+        }
+        foreach (connection; snapshot)
+        {
+            if (connection.thread is selfThread)
+                continue;
+            try connection.thread.join();
+            catch (Throwable) {}
+        }
+
+        synchronized (_lifecycleMutex)
+        {
             _started = false;
         }
     }
@@ -168,7 +220,7 @@ package class HttpServer
                 readSet.reset();
                 readSet.add(_listener);
                 const ready = Socket.select(readSet, null, null,
-                                            dur!"msecs"(200));
+                                            dur!"msecs"(50));
                 if (ready <= 0)
                     continue;
 
@@ -210,16 +262,20 @@ package class HttpServer
 
     private void spawnConnection(Socket socket)
     {
+        auto conn = new Connection;
+        conn.socket = socket;
+
         auto thread = new Thread({
             scope (exit)
             {
+                atomicStore(conn.inFlight, false);
                 atomicOp!"-="(_activeConnections, 1);
                 untrack(Thread.getThis());
             }
 
             try
             {
-                connectionLoop(socket);
+                connectionLoop(conn);
             }
             catch (Throwable)
             {
@@ -231,9 +287,10 @@ package class HttpServer
             }
         });
         thread.isDaemon = true;
+        conn.thread = thread;
 
         synchronized (_mutex)
-            _connections ~= Connection(thread, socket);
+            _connections ~= conn;
 
         try
         {
@@ -262,8 +319,51 @@ package class HttpServer
         }
     }
 
-    private void connectionLoop(Socket socket)
+    private bool waitForNextRequest(Socket socket, ref SocketReader reader,
+                                    Connection conn)
     {
+        if (reader.hasBuffered)
+        {
+            if (!atomicLoad(_running))
+                return false;
+            atomicStore(conn.inFlight, true);
+            return atomicLoad(_running);
+        }
+
+        auto readSet = new SocketSet;
+        const hasTimeout = _idleTimeout > Duration.zero;
+        const deadline = hasTimeout ? MonoTime.currTime + _idleTimeout : MonoTime.init;
+        while (atomicLoad(_running))
+        {
+            Duration step = dur!"msecs"(50);
+            if (hasTimeout)
+            {
+                const remaining = deadline - MonoTime.currTime;
+                if (remaining <= Duration.zero)
+                    return false;
+                if (remaining < step)
+                    step = remaining;
+            }
+
+            readSet.reset();
+            readSet.add(socket);
+            const ready = Socket.select(readSet, null, null, step);
+            if (!atomicLoad(_running))
+                return false;
+            if (ready < 0)
+                return false;
+            if (ready > 0)
+            {
+                atomicStore(conn.inFlight, true);
+                return atomicLoad(_running);
+            }
+        }
+        return false;
+    }
+
+    private void connectionLoop(Connection conn)
+    {
+        auto socket = conn.socket;
         socket.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO,
                          _idleTimeout);
         socket.setOption(SocketOptionLevel.SOCKET, SocketOption.SNDTIMEO,
@@ -275,6 +375,10 @@ package class HttpServer
         auto reader = SocketReader(socket);
         while (atomicLoad(_running))
         {
+            atomicStore(conn.inFlight, false);
+            if (!waitForNextRequest(socket, reader, conn))
+                return;
+
             RawRequest raw;
             try
             {
@@ -291,11 +395,46 @@ package class HttpServer
                 return;
             }
 
+            bool bodyConsumed = !raw.hasBody;
+            bool expectContinueSent = false;
+            bool streamCorrupted = false;
+
+            ubyte[] loadBody(size_t limit)
+            {
+                if (raw.contentLength > limit)
+                {
+                    streamCorrupted = true;
+                    throw new HttpError(413, "Payload Too Large");
+                }
+                if (raw.expectContinue && raw.hasBody && !expectContinueSent)
+                {
+                    expectContinueSent = true;
+                    reader.sendRaw("HTTP/1.1 100 Continue\r\n\r\n");
+                }
+                try
+                {
+                    ubyte[] result;
+                    if (raw.chunked)
+                        result = reader.readChunked(limit, _maxHeaderSize);
+                    else if (raw.contentLength != 0)
+                        result = reader.readExact(raw.contentLength);
+                    bodyConsumed = true;
+                    return result;
+                }
+                catch (Throwable error)
+                {
+                    streamCorrupted = true;
+                    throw error;
+                }
+            }
+
             Request request;
             try
             {
                 request = new Request(raw.method, raw.target, raw.httpVersion,
-                                      raw.headers, raw.body, remoteIp(socket));
+                                      raw.headers, remoteIp(socket),
+                                      _maxBodySize, raw.hasBody,
+                                      raw.contentLength, &loadBody);
             }
             catch (HttpError error)
             {
@@ -315,12 +454,43 @@ package class HttpServer
                             .send("Internal Server Error");
             }
 
-            bool keepAlive = raw.keepAlive && !response._forceClose;
+            if (request._bodyRejected || streamCorrupted)
+                response.closeConnection();
+
+            bool keepAlive = raw.keepAlive && !response._forceClose &&
+                             atomicLoad(_running);
             auto connectionHeader = response.get("connection");
             if (connectionHeader !is null &&
                 connectionHeader.toLower.indexOf("close") >= 0)
             {
                 keepAlive = false;
+            }
+
+            if (keepAlive && !bodyConsumed)
+            {
+                if (raw.expectContinue && !expectContinueSent)
+                {
+                    keepAlive = false;
+                }
+                else if (raw.contentLength > request._maxBodySize)
+                {
+                    keepAlive = false;
+                }
+                else
+                {
+                    try
+                    {
+                        if (raw.chunked)
+                            reader.discardChunked(request._maxBodySize, _maxHeaderSize);
+                        else if (raw.contentLength != 0)
+                            reader.discardExact(raw.contentLength);
+                        bodyConsumed = true;
+                    }
+                    catch (Throwable)
+                    {
+                        keepAlive = false;
+                    }
+                }
             }
 
             try
@@ -331,6 +501,8 @@ package class HttpServer
             {
                 return;
             }
+
+            atomicStore(conn.inFlight, false);
 
             if (!keepAlive)
                 return;
@@ -460,9 +632,7 @@ package class HttpServer
             chunked = true;
         }
 
-        if (contentLength > _maxBodySize)
-            throw new HttpError(413, "Payload Too Large");
-
+        bool expectContinue;
         if (auto expectations = "expect" in headers)
         {
             if ((*expectations).length == 0 ||
@@ -471,15 +641,8 @@ package class HttpServer
             {
                 throw new HttpError(417, "Expectation Failed");
             }
-            if (chunked || contentLength != 0)
-                reader.sendRaw("HTTP/1.1 100 Continue\r\n\r\n");
+            expectContinue = true;
         }
-
-        ubyte[] body;
-        if (chunked)
-            body = reader.readChunked(_maxBodySize, _maxHeaderSize);
-        else if (contentLength != 0)
-            body = reader.readExact(contentLength);
 
         bool keepAlive = httpVersion == "HTTP/1.1";
         if (auto values = "connection" in headers)
@@ -498,7 +661,10 @@ package class HttpServer
         raw.target = target;
         raw.httpVersion = httpVersion;
         raw.headers = headers;
-        raw.body = body;
+        raw.contentLength = contentLength;
+        raw.chunked = chunked;
+        raw.expectContinue = expectContinue;
+        raw.hasBody = chunked || contentLength != 0;
         raw.keepAlive = keepAlive;
         return true;
     }
@@ -777,10 +943,12 @@ private bool parseByteRange(string header, ulong fileSize, out ByteRange range)
     }
 }
 
-private struct Connection
+private class Connection
 {
     Thread thread;
     Socket socket;
+    shared bool inFlight;
+    shared bool socketShutdown;
 }
 
 private struct RawRequest
@@ -789,7 +957,10 @@ private struct RawRequest
     string target;
     string httpVersion;
     string[][string] headers;
-    ubyte[] body;
+    size_t contentLength;
+    bool chunked;
+    bool expectContinue;
+    bool hasBody;
     bool keepAlive;
 }
 
@@ -812,6 +983,11 @@ private struct SocketReader
     this(Socket socket)
     {
         this.socket = socket;
+    }
+
+    @property bool hasBuffered() const
+    {
+        return start < end;
     }
 
     /// Receive more bytes. Returns `false` once the peer closed the stream.
@@ -936,6 +1112,54 @@ private struct SocketReader
             if (size > maxLength - body.length)
                 throw new HttpError(413, "Payload Too Large");
             readInto(body, size);
+
+            string chunkEnd;
+            if (!readLine(chunkEnd, 2) || chunkEnd.length != 0)
+                throw new HttpError(400, "Malformed chunked body");
+        }
+    }
+
+    /// Discard exactly `length` unread body bytes without buffering them.
+    void discardExact(size_t length)
+    {
+        const buffered = min(end - start, length);
+        start += buffered;
+        size_t remaining = length - buffered;
+        ubyte[chunkSize] scratch;
+        while (remaining > 0)
+        {
+            const toRead = min(remaining, scratch.length);
+            const received = socket.receive(scratch[0 .. toRead]);
+            if (received <= 0)
+                throw new HttpError(400, "Unexpected end of request body");
+            remaining -= cast(size_t) received;
+        }
+    }
+
+    /// Discard an unread chunked body up to `maxLength` bytes without buffering it.
+    void discardChunked(size_t maxLength, size_t maxHeaderLength)
+    {
+        size_t total;
+        while (true)
+        {
+            string line;
+            if (!readLine(line, 1024))
+                throw new HttpError(400, "Unexpected end of chunked body");
+
+            const semicolon = line.indexOf(';');
+            const hex = (semicolon >= 0 ? line[0 .. semicolon] : line).strip;
+            const size = parseChunkSize(hex);
+
+            if (size == 0)
+            {
+                skipTrailers(maxHeaderLength);
+                return;
+            }
+
+            if (size > maxLength - total)
+                throw new HttpError(413, "Payload Too Large");
+            discardExact(size);
+            total += size;
 
             string chunkEnd;
             if (!readLine(chunkEnd, 2) || chunkEnd.length != 0)

@@ -76,6 +76,7 @@
                 <ul class="docs-nav-list">
                     <li><a class="docs-nav-link active" href="routing.html">Routing in Depth</a></li>
                     <li><a class="docs-nav-link" href="middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="templates.html">Template Engine &amp; Views</a></li>
                     <li><a class="docs-nav-link" href="error-handling.html">Error Handling</a></li>
                 </ul>
             </div>
@@ -155,7 +156,7 @@ app.<span class="tok-fn">all</span>(<span class="tok-str">"/secret"</span>, (req
     <span class="tok-kw">auto</span> router = <span class="tok-kw">new</span> <span class="tok-type">Router</span>;
 
     router.<span class="tok-fn">get</span>(<span class="tok-str">"/"</span>, (req, res) {
-        res.<span class="tok-fn">json</span>([<span class="tok-str">"users"</span>: [<span class="tok-str">"Ada"</span>, <span class="tok-str">"Grace"</span>]]);
+        res.<span class="tok-fn">json</span>([<span class="tok-str">"users"</span>: [<span class="tok-str">"User 1"</span>, <span class="tok-str">"User 2"</span>]]);
     });
 
     router.<span class="tok-fn">get</span>(<span class="tok-str">"/:id"</span>, (req, res) {

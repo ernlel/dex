@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+    <defs>
+        <!-- Background subtle glow -->
+        <radialGradient id="dexBgGlow" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#1e293b"/>
+            <stop offset="100%" stop-color="#090d16"/>
+        </radialGradient>
+
+        <!-- Primary Ember-to-Ruby Gradient -->
+        <linearGradient id="dexFlame" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fbbf24"/>
+            <stop offset="30%" stop-color="#f59e0b"/>
+            <stop offset="70%" stop-color="#f97316"/>
+            <stop offset="100%" stop-color="#ef4444"/>
+        </linearGradient>
+
+        <!-- Accent Fast-Path Gradient -->
+        <linearGradient id="dexAccent" x1="0%" y1="50%" x2="100%" y2="50%">
+            <stop offset="0%" stop-color="#fde68a"/>
+            <stop offset="100%" stop-color="#f59e0b"/>
+        </linearGradient>
+
+        <!-- Shadow filter -->
+        <filter id="dexShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#f97316" flood-opacity="0.3"/>
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.5"/>
+        </filter>
+    </defs>
+
+    <!-- Outer Squircle Container -->
+    <rect width="128" height="128" rx="28" fill="url(#dexBgGlow)"/>
+    <rect width="126" height="126" x="1" y="1" rx="27" fill="none" stroke="#334155" stroke-opacity="0.6" stroke-width="1.5"/>
+
+    <!-- Dynamic "D" Mark with Express Speed Flow -->
+    <g filter="url(#dexShadow)" transform="translate(4, 2)">
+        <!-- Vertical Backbone of the D (representing compiled native stability) -->
+        <path d="M34 26 C34 22.686 36.686 20 40 20 L44 20 C47.314 20 50 22.686 50 20 L50 100 C50 103.314 47.314 106 44 106 L40 106 C36.686 106 34 103.314 34 100 Z"
+              fill="url(#dexFlame)" />
+
+        <!-- Forward-sweeping Upper Arc / Express Route -->
+        <path d="M48 20 L68 20 C84.568 20 98 33.431 98 50 C98 58.8 94.1 66.7 88 72 L72 58 C74.5 55.7 76 52.5 76 49 C76 44.582 72.418 41 68 41 L50 41 Z"
+              fill="url(#dexFlame)" />
+
+        <!-- High-speed Lower Chevron Loop (representing response flow) -->
+        <path d="M48 106 L68 106 C84.568 106 98 92.569 98 76 C98 72.8 97.4 69.8 96.3 67 L79.5 79.5 C78.5 82.5 74.5 85 68 85 L50 85 Z"
+              fill="url(#dexFlame)" opacity="0.95" />
+
+        <!-- Central Lightning / Velocity Core Node (representing Express routing) -->
+        <polygon points="56,53 82,53 66,74 88,74 54,103 62,77 46,77"
+                 fill="url(#dexAccent)" opacity="0.95" />
+    </g>
+</svg>

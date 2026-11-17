@@ -76,6 +76,7 @@
                 <ul class="docs-nav-list">
                     <li><a class="docs-nav-link" href="routing.html">Routing in Depth</a></li>
                     <li><a class="docs-nav-link active" href="middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="templates.html">Template Engine &amp; Views</a></li>
                     <li><a class="docs-nav-link" href="error-handling.html">Error Handling</a></li>
                 </ul>
             </div>
@@ -192,15 +193,70 @@ app.<span class="tok-fn">use</span>(<span class="tok-fn">cors</span>(options));<
                 <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-fn">securityHeaders</span>());</code></pre>
             </div>
 
+            <h3>5. Compression (`compression()`)</h3>
+            <p>
+                Compresses response bodies using Gzip or Deflate based on client <code>Accept-Encoding</code> headers and content type (HTML, JSON, JS, CSS, SVG, text):
+            </p>
+            <div class="code-frame">
+                <div class="code-header"><span class="code-lang">d</span></div>
+                <pre class="code"><code><span class="tok-kw">import</span> dex;
+
+<span class="tok-comment">// Default compression (threshold 1024 bytes)</span>
+app.<span class="tok-fn">use</span>(<span class="tok-fn">compression</span>());
+
+<span class="tok-comment">// Custom threshold or compression level (1-9)</span>
+<span class="tok-type">CompressionOptions</span> options;
+options.threshold = 512; <span class="tok-comment">// Compress payloads &gt;= 512 bytes</span>
+options.level = 6;
+app.<span class="tok-fn">use</span>(<span class="tok-fn">compression</span>(options));</code></pre>
+            </div>
+
+            <h3>6. Rate Limiting (`rateLimit()`)</h3>
+            <p>
+                Restricts incoming request volume per client key within a configured time window to protect APIs against abuse and DDoS:
+            </p>
+            <div class="code-frame">
+                <div class="code-header"><span class="code-lang">d</span></div>
+                <pre class="code"><code><span class="tok-kw">import</span> dex;
+<span class="tok-kw">import</span> core.time : dur;
+
+<span class="tok-comment">// Default rate limiter (60 requests per 1 minute per IP)</span>
+app.<span class="tok-fn">use</span>(<span class="tok-fn">rateLimit</span>());
+
+<span class="tok-comment">// Custom rate limit rules on API routes</span>
+<span class="tok-type">RateLimitOptions</span> options;
+options.max = 100;
+options.window = 15.<span class="tok-fn">dur</span>!<span class="tok-str">"minutes"</span>;
+options.message = <span class="tok-str">"API rate limit exceeded. Please wait before retrying."</span>;
+app.<span class="tok-fn">use</span>(<span class="tok-str">"/api"</span>, <span class="tok-fn">rateLimit</span>(options));</code></pre>
+            </div>
+
+            <h3>7. Per-Route Body Size Limits (`bodyLimit()`)</h3>
+            <p>
+                Overrides <code>app.maxBodySize</code> for specific routes or sub-routers, allowing tight caps on JSON endpoints while permitting larger uploads on dedicated routes:
+            </p>
+            <div class="code-frame">
+                <div class="code-header"><span class="code-lang">d</span></div>
+                <pre class="code"><code><span class="tok-kw">import</span> dex;
+
+<span class="tok-comment">// Tight global default (64 KiB)</span>
+app.maxBodySize = 64 * 1024;
+
+<span class="tok-comment">// Allow up to 50 MiB on a specific upload route</span>
+app.<span class="tok-fn">post</span>(<span class="tok-str">"/upload"</span>, <span class="tok-fn">bodyLimit</span>(50 * 1024 * 1024), (req, res) {
+    res.<span class="tok-fn">send</span>(<span class="tok-str">"Uploaded "</span> ~ req.rawBody.length.<span class="tok-fn">to</span>!<span class="tok-type">string</span> ~ <span class="tok-str">" bytes"</span>);
+});</code></pre>
+            </div>
+
             <!-- Pager -->
             <nav class="docs-pager" aria-label="Docs pagination">
                 <a class="pager-btn pager-prev" href="routing.html">
                     <span class="pager-label">&larr; Previous</span>
                     <span class="pager-title">Routing in Depth</span>
                 </a>
-                <a class="pager-btn pager-next" href="error-handling.html">
+                <a class="pager-btn pager-next" href="templates.html">
                     <span class="pager-label">Next &rarr;</span>
-                    <span class="pager-title">Error Handling</span>
+                    <span class="pager-title">Template Engine &amp; Views</span>
                 </a>
             </nav>
         </main>

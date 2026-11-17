@@ -76,6 +76,7 @@
                 <ul class="docs-nav-list">
                     <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
                     <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
+                    <li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li>
                     <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
                 </ul>
             </div>
@@ -120,6 +121,7 @@
                 <li><code>queryAll: string[][string]</code> — All query parameter values in order.</li>
                 <li><code>body: JSONValue</code> — Parsed request body (lazily evaluated on first access).</li>
                 <li><code>rawBody: string</code> — Raw unparsed request body as a string.</li>
+                <li><code>maxBodySize: size_t</code> — Effective maximum body size in bytes for this request (from <code>app.maxBodySize</code> or <code>bodyLimit()</code>).</li>
                 <li><code>ip: string</code> — Client IP address string.</li>
                 <li><code>protocol: string</code> — <code>"http"</code> or <code>"https"</code>.</li>
                 <li><code>secure: bool</code> — True if the request arrived over TLS.</li>
