@@ -59,6 +59,10 @@ alias Middleware = void delegate(Request request, Response response, Next next);
 alias ErrorHandler = void delegate(Throwable error, Request request,
                                    Response response, Next next);
 
+/// Parameter middleware registered via `router.param(name, callback)`.
+alias ParamHandler = void delegate(Request request, Response response,
+                                   Next next, string value);
+
 private enum LayerKind
 {
     route,
@@ -234,6 +238,7 @@ private struct Layer
     bool hasPrefix;
     void delegate(Request, Response, Next) invoke;
     ErrorHandler errorHandler;
+    Router childRouter;
 }
 
 private struct LayerMatch
@@ -245,10 +250,70 @@ private struct LayerMatch
     string consumedRaw;
 }
 
+/// Fluent route builder returned by `router.route(path)`.
+struct RouteChain
+{
+    private Router _router;
+    private string _path;
+
+    /// Register handlers for all HTTP methods on this path.
+    RouteChain all(Handlers...)(Handlers handlers) if (Handlers.length >= 1)
+    {
+        _router.all(_path, handlers);
+        return this;
+    }
+
+    /// Register handlers for a custom HTTP method on this path.
+    RouteChain method(Handlers...)(string httpMethod, Handlers handlers) if (Handlers.length >= 1)
+    {
+        foreach (h; handlers)
+            _router.addRouteAny(httpMethod, _path, h);
+        return this;
+    }
+
+    mixin(chainMethod("get", "GET"));
+    mixin(chainMethod("post", "POST"));
+    mixin(chainMethod("put", "PUT"));
+    mixin(chainMethod("patch", "PATCH"));
+    mixin(chainMethod("delete_", "DELETE"));
+    mixin(chainMethod("del", "DELETE"));
+    mixin(chainMethod("head", "HEAD"));
+    mixin(chainMethod("options", "OPTIONS"));
+    mixin(chainMethod("connect", "CONNECT"));
+    mixin(chainMethod("trace", "TRACE"));
+}
+
+private string chainMethod(string name, string method)
+{
+    return
+        "RouteChain " ~ name ~ "(Handlers...)(Handlers handlers) if (Handlers.length >= 1)\n" ~
+        "{\n" ~
+        "    _router." ~ name ~ "(_path, handlers);\n" ~
+        "    return this;\n" ~
+        "}\n" ~
+        "RouteChain " ~ name ~ "(Handler handler)\n" ~
+        "{\n" ~
+        "    _router.addRoute(\"" ~ method ~ "\", _path, handler);\n" ~
+        "    return this;\n" ~
+        "}\n" ~
+        "RouteChain " ~ name ~ "(Middleware middleware)\n" ~
+        "{\n" ~
+        "    _router.addRoute(\"" ~ method ~ "\", _path, middleware);\n" ~
+        "    return this;\n" ~
+        "}\n" ~
+        "RouteChain " ~ name ~ "(Middleware first, Handler last)\n" ~
+        "{\n" ~
+        "    _router.addRoute(\"" ~ method ~ "\", _path, first);\n" ~
+        "    _router.addRoute(\"" ~ method ~ "\", _path, last);\n" ~
+        "    return this;\n" ~
+        "}\n";
+}
+
 /// Base class for `App`; can also be mounted as a sub-router.
 class Router
 {
     package Layer[] _layers;
+    private ParamHandler[][string] _paramHandlers;
 
     /// Enable case-sensitive path matching. Defaults to false (Express-like).
     bool caseSensitive;
@@ -299,16 +364,47 @@ class Router
         addRouter(prefix, router);
     }
 
+    /// Register multiple middleware handlers at once.
+    void use(Handlers...)(Handlers handlers)
+        if (Handlers.length >= 2 && isRouteHandlers!Handlers)
+    {
+        foreach (h; handlers)
+            addMiddlewareAny("", h);
+    }
+
+    /// Register multiple middleware handlers mounted under a path prefix.
+    void use(Handlers...)(string prefix, Handlers handlers)
+        if (Handlers.length >= 2 && isRouteHandlers!Handlers)
+    {
+        foreach (h; handlers)
+            addMiddlewareAny(prefix, h);
+    }
+
+    /// Register a callback triggered when route parameter `name` is matched.
+    void param(string name, ParamHandler handler)
+    {
+        if (name.length == 0 || handler is null)
+            return;
+        _paramHandlers[name] ~= handler;
+    }
+
     mixin(verbMethods("all", ""));
     mixin(verbMethods("get", "GET"));
     mixin(verbMethods("post", "POST"));
     mixin(verbMethods("put", "PUT"));
     mixin(verbMethods("patch", "PATCH"));
     mixin(verbMethods("delete", "DELETE"));
+    mixin(verbMethods("delete_", "DELETE"));
     mixin(verbMethods("head", "HEAD"));
     mixin(verbMethods("options", "OPTIONS"));
     mixin(verbMethods("connect", "CONNECT"));
     mixin(verbMethods("trace", "TRACE"));
+
+    /// Return a fluent `RouteChain` for registering multiple HTTP methods on `path`.
+    RouteChain route(string path)
+    {
+        return RouteChain(this, path);
+    }
 
     /// Register a handler for a custom method.
     void route(string method, string path, Handler handler)
@@ -320,6 +416,60 @@ class Router
     void route(string method, string path, Middleware middleware)
     {
         addRoute(method, path, middleware);
+    }
+
+    /// Compute the list of HTTP methods that have a route matching `rawPath`.
+    package string[] allowedMethods(string rawPath) const
+    {
+        string[] methods;
+        bool[string] seen;
+
+        void record(string m)
+        {
+            if (m.length == 0)
+                return;
+            if (m !in seen)
+            {
+                seen[m] = true;
+                methods ~= m;
+            }
+            if (m == "GET" && ("HEAD" !in seen))
+            {
+                seen["HEAD"] = true;
+                methods ~= "HEAD";
+            }
+        }
+
+        foreach (const ref layer; _layers)
+        {
+            if (layer.kind == LayerKind.route)
+            {
+                if (layer.method.length != 0)
+                {
+                    PathMatch pm;
+                    if (layer.pattern.matches(rawPath, false, caseSensitive, pm))
+                        record(layer.method);
+                }
+            }
+            else if (layer.kind == LayerKind.middleware && layer.childRouter !is null)
+            {
+                string subPath = rawPath;
+                if (layer.hasPrefix)
+                {
+                    PathMatch pm;
+                    if (!layer.pattern.matches(rawPath, true, caseSensitive, pm))
+                        continue;
+                    auto remainder = rawPath[pm.consumedEnd .. $];
+                    while (remainder.length > 1 && remainder[1] == '/')
+                        remainder = remainder[1 .. $];
+                    subPath = remainder.length ? remainder : "/";
+                }
+                foreach (m; layer.childRouter.allowedMethods(subPath))
+                    record(m);
+            }
+        }
+
+        return methods;
     }
 
     /// Dispatch a request through this router. Calls `done` when no handler
@@ -374,16 +524,37 @@ class Router
         _layers ~= layer;
     }
 
+    private void addMiddlewareAny(T)(string prefix, T fn)
+    {
+        addMiddleware(prefix, fn);
+    }
+
     private void addRouter(string prefix, Router router)
     {
         if (router is null)
             throw new Exception("Cannot mount a null router");
         if (router is this)
             throw new Exception("Cannot mount a router on itself");
-        addMiddleware(prefix, (Request request, Response response, Next next)
+
+        Layer layer;
+        layer.kind = LayerKind.middleware;
+        const normalized = normalizePath(prefix);
+        if (normalized != "/")
+        {
+            layer.hasPrefix = true;
+            layer.pattern = RoutePattern.compile(normalized);
+        }
+        layer.childRouter = router;
+        layer.invoke = (Request request, Response response, Next next)
         {
             router.dispatch(request, response, () { next(); });
-        });
+        };
+        _layers ~= layer;
+    }
+
+    package void addRouteAny(T)(string method, string path, T fn)
+    {
+        addRoute(method, path, fn);
     }
 
     private void addRoute(string method, string path, Handler handler)
@@ -527,6 +698,16 @@ class Router
 
             try
             {
+                if (match.params.length != 0 && _paramHandlers.length != 0)
+                {
+                    if (!runParamHandlers(state, match.params, i))
+                    {
+                        restore();
+                        if (state.response._finished)
+                            return;
+                        continue;
+                    }
+                }
                 layer.invoke(request, response, next);
             }
             catch (Throwable error)
@@ -613,6 +794,66 @@ class Router
         state.error = error;
         return false;
     }
+
+    private bool runParamHandlers(ref DispatchState state,
+                                  const string[string] matchedParams,
+                                  size_t resumeAt)
+    {
+        struct ParamStep
+        {
+            string value;
+            ParamHandler handler;
+        }
+
+        ParamStep[] steps;
+        foreach (name, value; matchedParams)
+        {
+            if (auto prev = name in state.ranParams)
+            {
+                if (*prev == value)
+                    continue;
+            }
+            if (auto list = name in _paramHandlers)
+            {
+                state.ranParams[name] = value;
+                foreach (cb; *list)
+                    steps ~= ParamStep(value, cb);
+            }
+        }
+
+        foreach (step; steps)
+        {
+            if (state.response._finished)
+                return false;
+
+            bool advanced = false;
+            Throwable paramError;
+            void nextFn() { advanced = true; }
+            void errorFn(Throwable e) { advanced = true; paramError = e; }
+            Next paramNext = Next(&nextFn, &errorFn);
+
+            try
+            {
+                step.handler(state.request, state.response, paramNext, step.value);
+            }
+            catch (Throwable e)
+            {
+                recordError(state, e, resumeAt);
+                throw e;
+            }
+
+            if (paramError !is null)
+            {
+                recordError(state, paramError, resumeAt);
+                throw paramError;
+            }
+            if (state.response._finished)
+                return false;
+            if (!advanced)
+                return false;
+        }
+        return true;
+    }
 }
 
 private struct DispatchState
@@ -625,22 +866,54 @@ private struct DispatchState
     bool errorSet;
     size_t errorStart;
     Throwable error;
+    string[string] ranParams;
+}
+
+private template isRouteHandlers(Handlers...)
+{
+    static if (Handlers.length == 0)
+        enum isRouteHandlers = true;
+    else
+        enum isRouteHandlers = (is(Handlers[0] : Handler) || is(Handlers[0] : Middleware)) &&
+                               isRouteHandlers!(Handlers[1 .. $]);
 }
 
 private string verbMethods(string name, string method)
 {
-    return
+    string code =
         "void " ~ name ~ "(string path, Handler handler) { addRoute(\"" ~ method ~
             "\", path, handler); }\n" ~
         "void " ~ name ~ "(string path, Middleware middleware) { addRoute(\"" ~ method ~
             "\", path, middleware); }\n" ~
         "void " ~ name ~ "(string path, Handler first, Handler last) " ~
             "{ addRoute(\"" ~ method ~ "\", path, first); addRoute(\"" ~ method ~
-            "\", path, last); }\n" ~
-        "void " ~ name ~ "(string path, Middleware first, Handler last) " ~
-            "{ addRoute(\"" ~ method ~ "\", path, first); addRoute(\"" ~ method ~
-            "\", path, last); }\n" ~
-        "void " ~ name ~ "(string path, Middleware first, Middleware second, Handler last) " ~
-            "{ addRoute(\"" ~ method ~ "\", path, first); addRoute(\"" ~ method ~
-            "\", path, second); addRoute(\"" ~ method ~ "\", path, last); }\n";
+            "\", path, last); }\n";
+
+    // Generate concrete overloads for 1..7 middlewares + trailing Handler/Middleware
+    // so untyped lambda literals infer their parameter types cleanly.
+    foreach (mwCount; 1 .. 8)
+    {
+        string params = "";
+        string calls = "";
+        foreach (idx; 0 .. mwCount)
+        {
+            params ~= "Middleware mw" ~ cast(char) ('0' + idx) ~ ", ";
+            calls ~= "addRoute(\"" ~ method ~ "\", path, mw" ~ cast(char) ('0' + idx) ~ "); ";
+        }
+        code ~= "void " ~ name ~ "(string path, " ~ params ~ "Handler last) { " ~
+                calls ~ "addRoute(\"" ~ method ~ "\", path, last); }\n";
+        code ~= "void " ~ name ~ "(string path, " ~ params ~ "Middleware last) { " ~
+                calls ~ "addRoute(\"" ~ method ~ "\", path, last); }\n";
+    }
+
+    // Variadic fallback for arbitrarily long chains of typed handlers/middlewares.
+    code ~=
+        "void " ~ name ~ "(Handlers...)(string path, Handlers handlers) " ~
+        "if (Handlers.length > 8 && isRouteHandlers!Handlers)\n" ~
+        "{\n" ~
+        "    foreach (h; handlers)\n" ~
+        "        addRoute(\"" ~ method ~ "\", path, h);\n" ~
+        "}\n";
+
+    return code;
 }

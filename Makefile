@@ -13,6 +13,7 @@ D_SRC = source/dex/package.d \
         source/dex/response.d \
         source/dex/router.d \
         source/dex/server.d \
+        source/dex/session.d \
         source/dex/view.d
 
 ALL_SRC = $(D_SRC) source/dex/tests.d
@@ -20,7 +21,7 @@ ALL_SRC = $(D_SRC) source/dex/tests.d
 LIB = libdex.a
 TEST_BIN = dex-test-runner
 
-VERSION ?= 0.4.0
+VERSION ?= 0.5.0
 DIST_DIR = dist
 DIST_NAME = dex-$(VERSION)
 DIST_BIN_NAME = dex-$(VERSION)-linux-x86_64
@@ -28,7 +29,7 @@ DIST_BIN_NAME = dex-$(VERSION)-linux-x86_64
 # Compiler flags (release optimized by default)
 DFLAGS ?= -O -release -inline
 
-.PHONY: all clean test install uninstall dist dist-bin
+.PHONY: all clean test install uninstall dist dist-bin docs docs-serve
 
 all: $(LIB)
 
@@ -70,6 +71,12 @@ dist-bin: $(LIB)
 	cd $(DIST_DIR) && tar -czf $(DIST_BIN_NAME).tar.gz $(DIST_BIN_NAME)
 	rm -rf $(DIST_DIR)/$(DIST_BIN_NAME)
 	@echo "Created $(DIST_DIR)/$(DIST_BIN_NAME).tar.gz"
+
+docs:
+	python3 scripts/build_docs.py
+
+docs-serve: docs
+	python3 -m http.server 8080 --directory docs
 
 clean:
 	rm -f $(LIB) $(TEST_BIN) *.o

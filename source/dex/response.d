@@ -6,15 +6,17 @@ import std.array : join;
 import std.conv : to;
 import std.datetime : Clock;
 import std.file : getSize, isFile, read, timeLastModified;
-import std.path : extension;
+import std.path : baseName, extension;
 import std.string : toLower;
 
 import dex.app : App;
 import dex.errors : HttpError;
-import dex.http : encodeCookieValue, httpDate, isToken, mimeType,
+import dex.http : computeStrongETag, computeWeakETag, contentDispositionAttachment,
+                  encodeCookieValue, httpDate, isToken, mimeType, negotiateAccept,
                   reasonPhrase, validCookieName;
 import dex.jsonx : toJSONValue;
 import dex.request : Request;
+import dex.session : signCookie;
 
 /// Cookie `SameSite` policy.
 enum SameSite
@@ -40,6 +42,10 @@ struct CookieOptions
     bool secure;
     /// `SameSite` policy.
     SameSite sameSite = SameSite.unset;
+    /// Sign the cookie value with HMAC-SHA256 (`app.cookieSecret` or `secret`).
+    bool signed;
+    /// Optional signing secret overriding `app.cookieSecret`.
+    string secret;
 }
 
 /// The response object passed to handlers.
@@ -57,6 +63,7 @@ class Response
     ulong _fileSize;
     bool _finished;
     bool _forceClose;
+    void delegate(Response)[] _beforeFinishCallbacks;
     void delegate(Response)[] _finishCallbacks;
     App _app;
 
@@ -271,16 +278,105 @@ class Response
             const ext = extension(filePath);
             type(ext.length ? ext[1 .. $] : "");
         }
-        set("last-modified", httpDate(timeLastModified(filePath)));
+        const mtime = timeLastModified(filePath);
+        if (!has("last-modified"))
+            set("last-modified", httpDate(mtime));
+        if ((_app is null || _app.etag) && !has("etag"))
+            set("etag", computeWeakETag(_fileSize, mtime.toUnixTime()));
         finish();
         return this;
     }
 
+    /// Prompt the client to download `filePath` as an attachment (`Content-Disposition`).
+    /// Defaults `filename` to the base name of `filePath`.
+    Response download(string filePath, string filename = null)
+    {
+        if (_finished)
+            return this;
+        if (!isFile(filePath))
+            throw new HttpError(404, "Not Found");
+        const targetName = filename.length ? filename : baseName(filePath);
+        set("content-disposition", contentDispositionAttachment(targetName));
+        return sendFile(filePath);
+    }
+
+    /// Set the `ETag` response header explicitly.
+    Response etag(string tag)
+    {
+        return set("etag", tag);
+    }
+
+    /// Perform content-type negotiation on the `Accept` header and invoke the
+    /// matching handler, or throw `HttpError` (406) when none match.
+    Response format(void delegate(Request, Response)[string] handlers)
+    {
+        return formatImpl(handlers);
+    }
+
+    /// Overload accepting zero-argument handlers (`() { res.send(...); }`).
+    Response format(void delegate()[string] handlers)
+    {
+        if (_finished)
+            return this;
+        string[] candidates;
+        foreach (k, _; handlers)
+            if (k != "default")
+                candidates ~= k;
+        const matched = _request is null ? (candidates.length ? candidates[0] : null)
+                                         : _request.accepts(candidates);
+        if (matched !is null)
+        {
+            if (!has("content-type"))
+                type(matched);
+            handlers[matched]();
+            return this;
+        }
+        if (auto def = "default" in handlers)
+        {
+            (*def)();
+            return this;
+        }
+        throw new HttpError(406, "Not Acceptable");
+    }
+
+    private Response formatImpl(void delegate(Request, Response)[string] handlers)
+    {
+        if (_finished)
+            return this;
+        string[] candidates;
+        foreach (k, _; handlers)
+            if (k != "default")
+                candidates ~= k;
+        const matched = _request is null ? (candidates.length ? candidates[0] : null)
+                                         : _request.accepts(candidates);
+        if (matched !is null)
+        {
+            if (!has("content-type"))
+                type(matched);
+            handlers[matched](_request, this);
+            return this;
+        }
+        if (auto def = "default" in handlers)
+        {
+            (*def)(_request, this);
+            return this;
+        }
+        throw new HttpError(406, "Not Acceptable");
+    }
+
     /// Set a cookie. Values are percent-encoded and round-trip through
-    /// `Request.cookie`.
+    /// `Request.cookie` (or `Request.signedCookie` when `options.signed` is true).
     Response cookie(string name, string value,
                     CookieOptions options = CookieOptions.init)
     {
+        return appendCookie(name, value, options, false);
+    }
+
+    /// Sign and set a cookie using HMAC-SHA256 (`options.secret` or `app.cookieSecret`).
+    Response signedCookie(string name, string value,
+                          CookieOptions options = CookieOptions.init)
+    {
+        options.signed = true;
         return appendCookie(name, value, options, false);
     }
 
@@ -304,6 +400,13 @@ class Response
     {
         if (!_finished && callback !is null)
             _finishCallbacks ~= callback;
+        return this;
+    }
+
+    package Response onBeforeFinish(void delegate(Response) callback)
+    {
+        if (!_finished && callback !is null)
+            _beforeFinishCallbacks ~= callback;
         return this;
     }
 
@@ -363,6 +466,31 @@ class Response
     {
         if (_finished)
             return;
+
+        if ((_app is null || _app.etag) && statusCode == 200 &&
+            _filePath.length == 0 && _body.length != 0 && !has("etag"))
+        {
+            set("etag", computeStrongETag(_body));
+        }
+
+        if (statusCode == 200 && _request !is null &&
+            _request.isFreshFor(get("etag"), get("last-modified")))
+        {
+            statusCode = 304;
+            _body = null;
+            _filePath = null;
+            _fileSize = 0;
+        }
+
+        auto beforeCallbacks = _beforeFinishCallbacks;
+        _beforeFinishCallbacks = null;
+        foreach (callback; beforeCallbacks)
+        {
+            try
+                callback(this);
+            catch (Exception) {}
+        }
+
         _finished = true;
         auto callbacks = _finishCallbacks;
         _finishCallbacks = null;
@@ -388,7 +516,16 @@ class Response
         if (!expired && options.maxAge < Duration.zero)
             throw new Exception("Cookie maxAge must not be negative");
 
-        auto cookieValue = expired ? "" : encodeCookieValue(value);
+        string finalValue = value;
+        if (!expired && options.signed)
+        {
+            string secret = options.secret;
+            if (secret.length == 0 && _app !is null && _app.cookieSecrets.length != 0)
+                secret = _app.cookieSecrets[0];
+            finalValue = signCookie(value, secret);
+        }
+
+        auto cookieValue = expired ? "" : encodeCookieValue(finalValue);
         auto header = name ~ "=" ~ cookieValue;
         if (options.path.length)
             header ~= "; Path=" ~ options.path;

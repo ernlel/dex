@@ -13,3 +13,6 @@ dub.selections.json
 /examples/api-server/api-server
 /examples/file-server/file-server
 /examples/views/views-example
+/examples/sessions/sessions
+__pycache__/
+*.pyc

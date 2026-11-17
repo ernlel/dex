@@ -2,7 +2,10 @@
 module dex.http;
 
 import std.algorithm.searching : canFind;
-import std.datetime : SysTime;
+import std.base64 : Base64URLNoPadding;
+import std.conv : ConvException, to;
+import std.datetime : DateTime, SysTime, UTC;
+import std.digest.sha : sha256Of;
 import std.format : format;
 import std.string : indexOf, split, startsWith, strip, toLower;
 
@@ -336,4 +339,651 @@ string hostName(string host)
             return host[0 .. colon];
     }
     return host;
+}
+
+/// Compute a strong ETag (`"<base64url>"`) from response bytes using SHA-256.
+string computeStrongETag(const(ubyte)[] data)
+{
+    auto digest = sha256Of(data);
+    return `"` ~ Base64URLNoPadding.encode(digest[0 .. 16]).idup ~ `"`;
+}
+
+/// Compute a fast weak ETag (`W/"<hex-size>-<hex-mtime>"`) for static files.
+string computeWeakETag(ulong size, long mtimeSecs)
+{
+    return format(`W/"%x-%x"`, size, cast(ulong) mtimeSecs);
+}
+
+/// Convert a strong ETag to a weak ETag (no-op if already weak).
+string weakenETag(string etag)
+{
+    if (etag.length == 0 || etag.startsWith("W/"))
+        return etag;
+    return "W/" ~ etag;
+}
+
+/// Strip weak prefix (`W/`) for weak ETag comparison per RFC 9110.
+private string opaqueETag(string tag)
+{
+    tag = tag.strip;
+    if (tag.startsWith("W/"))
+        return tag[2 .. $].strip;
+    return tag;
+}
+
+/// Check whether an `If-None-Match` header matches `etag` using weak comparison.
+bool matchesIfNoneMatch(string header, string etag)
+{
+    if (header.length == 0 || etag.length == 0)
+        return false;
+
+    const target = opaqueETag(etag);
+    size_t i = 0;
+    while (i < header.length)
+    {
+        while (i < header.length && (header[i] == ',' || header[i] == ' ' || header[i] == '\t'))
+            ++i;
+        if (i >= header.length)
+            break;
+
+        if (header[i] == '*')
+        {
+            const rest = header[i + 1 .. $].strip;
+            if (rest.length == 0 || rest[0] == ',')
+                return true;
+        }
+
+        const start = i;
+        bool inQuotes = false;
+        while (i < header.length)
+        {
+            const char c = header[i];
+            if (c == '"')
+                inQuotes = !inQuotes;
+            else if (c == ',' && !inQuotes)
+                break;
+            ++i;
+        }
+        const candidate = opaqueETag(header[start .. i]);
+        if (candidate.length != 0 && candidate == target)
+            return true;
+    }
+    return false;
+}
+
+/// Parse an RFC 9110 HTTP date (IMF-fixdate, e.g. `Sun, 06 Nov 1994 08:49:37 GMT`).
+bool parseHttpDate(string value, out SysTime result)
+{
+    static immutable string[12] months =
+        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    auto s = value.strip;
+    const comma = s.indexOf(',');
+    if (comma < 0)
+        return false;
+    s = s[comma + 1 .. $].strip;
+    auto parts = s.split();
+    if (parts.length < 5)
+        return false;
+    if (parts[4] != "GMT" && parts[4] != "UTC")
+        return false;
+
+    try
+    {
+        const day = to!int(parts[0]);
+        int month = 0;
+        foreach (idx, name; months)
+        {
+            if (name == parts[1])
+            {
+                month = cast(int) idx + 1;
+                break;
+            }
+        }
+        if (month == 0)
+            return false;
+        const year = to!int(parts[2]);
+        auto hms = parts[3].split(':');
+        if (hms.length != 3)
+            return false;
+        const hour = to!int(hms[0]);
+        const minute = to!int(hms[1]);
+        const second = to!int(hms[2]);
+
+        result = SysTime(DateTime(year, month, day, hour, minute, second), UTC());
+        return true;
+    }
+    catch (Exception)
+    {
+        return false;
+    }
+}
+
+/// Build a safe `Content-Disposition: attachment` header value.
+string contentDispositionAttachment(string filename)
+{
+    import std.path : baseName;
+
+    auto name = baseName(filename);
+    char[] ascii;
+    ascii.reserve(name.length);
+    bool hasNonAscii = false;
+
+    foreach (const char c; name)
+    {
+        if (c == '\r' || c == '\n' || c == '\0')
+            continue;
+        if (cast(ubyte) c >= 0x80)
+        {
+            hasNonAscii = true;
+            ascii ~= '_';
+            continue;
+        }
+        if (c == '"' || c == '\\')
+            ascii ~= '_';
+        else
+            ascii ~= c;
+    }
+    if (ascii.length == 0)
+        ascii ~= "download".dup;
+
+    auto header = `attachment; filename="` ~ ascii.idup ~ `"`;
+    if (hasNonAscii)
+    {
+        static immutable char[] hex = "0123456789ABCDEF";
+        char[] encoded;
+        encoded.reserve(name.length * 3);
+        foreach (const char c; name)
+        {
+            if (c == '\r' || c == '\n' || c == '\0')
+                continue;
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') || c == '-' || c == '.' ||
+                c == '_' || c == '~')
+            {
+                encoded ~= c;
+            }
+            else
+            {
+                const u = cast(ubyte) c;
+                encoded ~= '%';
+                encoded ~= hex[u >> 4];
+                encoded ~= hex[u & 0xF];
+            }
+        }
+        header ~= "; filename*=UTF-8''" ~ encoded.idup;
+    }
+    return header;
+}
+
+/// Select the best matching candidate MIME/extension against an `Accept` header.
+/// Returns `null` if no candidate is acceptable.
+string negotiateAccept(string acceptHeader, const(string)[] candidates)
+{
+    if (candidates.length == 0)
+        return null;
+    if (acceptHeader is null || acceptHeader.strip.length == 0)
+        return candidates[0];
+
+    struct AcceptRule
+    {
+        string type;
+        string subtype;
+        double q;
+        size_t specificity;
+        size_t order;
+    }
+
+    AcceptRule[] rules;
+    size_t idx = 0;
+    foreach (part; acceptHeader.split(','))
+    {
+        auto pieces = part.split(';');
+        auto range = pieces[0].strip.toLower;
+        const slash = range.indexOf('/');
+        if (slash <= 0 || slash == range.length - 1)
+            continue;
+
+        const type = range[0 .. slash].strip;
+        const subtype = range[slash + 1 .. $].strip;
+        double q = 1.0;
+        foreach (param; pieces[1 .. $])
+        {
+            const p = param.strip.toLower;
+            if (p.startsWith("q="))
+            {
+                try
+                    q = to!double(p[2 .. $].strip);
+                catch (Exception)
+                    q = 0.0;
+            }
+        }
+        if (q < 0.0) q = 0.0;
+        if (q > 1.0) q = 1.0;
+
+        size_t spec = 2;
+        if (type == "*" && subtype == "*")
+            spec = 0;
+        else if (subtype == "*")
+            spec = 1;
+
+        rules ~= AcceptRule(type, subtype, q, spec, idx++);
+    }
+
+    if (rules.length == 0)
+        return null;
+
+    string bestCandidate = null;
+    double bestQ = 0.0;
+    long bestSpec = -1;
+    size_t bestRuleOrder = size_t.max;
+
+    foreach (cand; candidates)
+    {
+        const resolved = cand.indexOf('/') >= 0 ? cand : mimeType(cand);
+        const media = mediaType(resolved);
+        const slash = media.indexOf('/');
+        if (slash <= 0)
+            continue;
+        const cType = media[0 .. slash];
+        const cSub = media[slash + 1 .. $];
+
+        // Find the most specific matching rule for this candidate.
+        bool matched = false;
+        AcceptRule matchedRule;
+        foreach (const ref r; rules)
+        {
+            const matches = (r.type == "*" && r.subtype == "*") ||
+                            (r.type == cType && (r.subtype == "*" || r.subtype == cSub));
+            if (!matches)
+                continue;
+            if (!matched || r.specificity > matchedRule.specificity ||
+                (r.specificity == matchedRule.specificity && r.q > matchedRule.q))
+            {
+                matched = true;
+                matchedRule = r;
+            }
+        }
+
+        if (!matched || matchedRule.q <= 0.0)
+            continue;
+
+        const better = bestCandidate is null ||
+                       matchedRule.q > bestQ ||
+                       (matchedRule.q == bestQ && cast(long) matchedRule.specificity > bestSpec) ||
+                       (matchedRule.q == bestQ && cast(long) matchedRule.specificity == bestSpec &&
+                        matchedRule.order < bestRuleOrder);
+        if (better)
+        {
+            bestCandidate = cand;
+            bestQ = matchedRule.q;
+            bestSpec = cast(long) matchedRule.specificity;
+            bestRuleOrder = matchedRule.order;
+        }
+    }
+
+    return bestCandidate;
+}
+
+/// Parsed IPv4/IPv6 address normalized to 16 bytes (IPv4 uses IPv4-mapped `::ffff:a.b.c.d`).
+struct ParsedIp
+{
+    ubyte[16] bytes;
+    bool isV6;
+}
+
+/// Parse an IPv4 or IPv6 literal (with optional `%zone` or `[brackets]`).
+bool parseIpAddress(string input, out ParsedIp parsed)
+{
+    auto s = input.strip;
+    if (s.length == 0)
+        return false;
+    if (s[0] == '[' && s[$ - 1] == ']')
+        s = s[1 .. $ - 1];
+    const pct = s.indexOf('%');
+    if (pct >= 0)
+        s = s[0 .. pct];
+
+    if (s.indexOf(':') < 0)
+    {
+        ubyte[4] v4;
+        if (!parseIPv4Bytes(s, v4))
+            return false;
+        parsed.bytes[0 .. 10] = 0;
+        parsed.bytes[10] = 0xff;
+        parsed.bytes[11] = 0xff;
+        parsed.bytes[12 .. 16] = v4[];
+        parsed.isV6 = false;
+        return true;
+    }
+
+    if (!parseIPv6Bytes(s, parsed.bytes))
+        return false;
+    parsed.isV6 = true;
+    return true;
+}
+
+private bool parseIPv4Bytes(string s, out ubyte[4] outBytes)
+{
+    auto parts = s.split('.');
+    if (parts.length != 4)
+        return false;
+    foreach (i, part; parts)
+    {
+        if (part.length == 0 || part.length > 3)
+            return false;
+        int val = 0;
+        foreach (const char c; part)
+        {
+            if (c < '0' || c > '9')
+                return false;
+            val = val * 10 + (c - '0');
+        }
+        if (val > 255)
+            return false;
+        outBytes[i] = cast(ubyte) val;
+    }
+    return true;
+}
+
+private bool parseIPv6Bytes(string s, out ubyte[16] outBytes)
+{
+    const dbl = s.indexOf("::");
+    string leftStr = s;
+    string rightStr = null;
+    bool hasCompressed = false;
+    if (dbl >= 0)
+    {
+        if (s[dbl + 2 .. $].indexOf("::") >= 0)
+            return false;
+        hasCompressed = true;
+        leftStr = s[0 .. dbl];
+        rightStr = s[dbl + 2 .. $];
+    }
+
+    ushort[] parseGroups(string str, out bool hadIPv4Tail, out ubyte[4] v4Tail)
+    {
+        hadIPv4Tail = false;
+        if (str.length == 0)
+            return null;
+        auto parts = str.split(':');
+        ushort[] groups;
+        foreach (idx, p; parts)
+        {
+            if (p.length == 0)
+                throw new ConvException("Empty IPv6 group");
+            if (p.indexOf('.') >= 0)
+            {
+                if (idx != parts.length - 1 || !parseIPv4Bytes(p, v4Tail))
+                    throw new ConvException("Invalid IPv4 tail");
+                hadIPv4Tail = true;
+                groups ~= cast(ushort) ((v4Tail[0] << 8) | v4Tail[1]);
+                groups ~= cast(ushort) ((v4Tail[2] << 8) | v4Tail[3]);
+                continue;
+            }
+            if (p.length > 4)
+                throw new ConvException("Invalid IPv6 group");
+            ushort val = 0;
+            foreach (const char c; p)
+            {
+                const hv = hexValue(c);
+                if (hv < 0)
+                    throw new ConvException("Invalid hex");
+                val = cast(ushort) ((val << 4) | hv);
+            }
+            groups ~= val;
+        }
+        return groups;
+    }
+
+    try
+    {
+        bool leftV4, rightV4;
+        ubyte[4] dummy;
+        auto left = parseGroups(leftStr, leftV4, dummy);
+        if (hasCompressed && leftV4)
+            return false;
+        auto right = hasCompressed ? parseGroups(rightStr, rightV4, dummy) : null;
+
+        if (!hasCompressed && left.length != 8)
+            return false;
+        if (hasCompressed && left.length + right.length >= 8)
+            return false;
+
+        ushort[8] groups;
+        foreach (i, g; left)
+            groups[i] = g;
+        if (hasCompressed)
+        {
+            const rightStart = 8 - right.length;
+            foreach (i, g; right)
+                groups[rightStart + i] = g;
+        }
+
+        foreach (i, g; groups)
+        {
+            outBytes[i * 2] = cast(ubyte) (g >> 8);
+            outBytes[i * 2 + 1] = cast(ubyte) (g & 0xff);
+        }
+        return true;
+    }
+    catch (ConvException)
+    {
+        return false;
+    }
+}
+
+/// Parsed CIDR range (normalized to 128-bit prefix over IPv4-mapped IPv6).
+struct IpCidr
+{
+    ubyte[16] network;
+    ubyte prefixLen;
+
+    bool matches(const ref ParsedIp ip) const
+    {
+        const fullBytes = prefixLen / 8;
+        const remBits = prefixLen % 8;
+        for (size_t i = 0; i < fullBytes; ++i)
+            if (ip.bytes[i] != network[i])
+                return false;
+        if (remBits != 0)
+        {
+            const mask = cast(ubyte) (0xff << (8 - remBits));
+            if ((ip.bytes[fullBytes] & mask) != (network[fullBytes] & mask))
+                return false;
+        }
+        return true;
+    }
+}
+
+/// Parse an IP or CIDR string (e.g. `"10.0.0.0/8"`, `"127.0.0.1"`, `"::1/128"`).
+bool parseIpCidr(string spec, out IpCidr cidr)
+{
+    const slash = spec.indexOf('/');
+    const addrStr = (slash >= 0 ? spec[0 .. slash] : spec).strip;
+    ParsedIp ip;
+    if (!parseIpAddress(addrStr, ip))
+        return false;
+
+    uint prefix;
+    if (slash < 0)
+    {
+        prefix = 128;
+    }
+    else
+    {
+        try
+            prefix = to!uint(spec[slash + 1 .. $].strip);
+        catch (ConvException)
+            return false;
+
+        if (ip.isV6)
+        {
+            if (prefix > 128)
+                return false;
+        }
+        else
+        {
+            if (prefix > 32)
+                return false;
+            prefix += 96; // Normalize IPv4 /0..32 into ::ffff:0:0/96..128
+        }
+    }
+
+    cidr.network = ip.bytes;
+    cidr.prefixLen = cast(ubyte) prefix;
+    return true;
+}
+
+/// Proxy trust configuration for `app.trustProxy`.
+///
+/// Controls how `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host`
+/// are interpreted for `req.ip`, `req.ips`, `req.protocol`, `req.secure`,
+/// and `req.hostname`.
+public struct TrustProxy
+{
+    enum Mode
+    {
+        none,
+        all,
+        hops,
+        subnets
+    }
+
+    Mode mode = Mode.none;
+    size_t hopCount;
+    IpCidr[] trustedCidrs;
+
+    this(bool enabled)
+    {
+        mode = enabled ? Mode.all : Mode.none;
+    }
+
+    this(size_t hops)
+    {
+        mode = hops == 0 ? Mode.none : Mode.hops;
+        hopCount = hops;
+    }
+
+    this(int hops)
+    {
+        this(hops > 0 ? cast(size_t) hops : 0);
+    }
+
+    this(string spec)
+    {
+        this([spec]);
+    }
+
+    this(const(string)[] specs)
+    {
+        if (specs.length == 0)
+        {
+            mode = Mode.none;
+            return;
+        }
+        mode = Mode.subnets;
+        foreach (s; specs)
+            addSpec(s);
+    }
+
+    static TrustProxy none() { return TrustProxy.init; }
+    static TrustProxy all() { return TrustProxy(true); }
+    static TrustProxy hops(size_t n) { return TrustProxy(n); }
+    static TrustProxy subnets(const(string)[] specs...) { return TrustProxy(specs); }
+
+    void opAssign(bool enabled)
+    {
+        mode = enabled ? Mode.all : Mode.none;
+        hopCount = 0;
+        trustedCidrs = null;
+    }
+
+    void opAssign(size_t hops)
+    {
+        mode = hops == 0 ? Mode.none : Mode.hops;
+        hopCount = hops;
+        trustedCidrs = null;
+    }
+
+    void opAssign(int hops)
+    {
+        opAssign(hops > 0 ? cast(size_t) hops : 0);
+    }
+
+    void opAssign(string spec)
+    {
+        opAssign([spec]);
+    }
+
+    void opAssign(const(string)[] specs)
+    {
+        trustedCidrs = null;
+        hopCount = 0;
+        if (specs.length == 0)
+        {
+            mode = Mode.none;
+            return;
+        }
+        mode = Mode.subnets;
+        foreach (s; specs)
+            addSpec(s);
+    }
+
+    bool opCast(T : bool)() const
+    {
+        return mode != Mode.none;
+    }
+
+    bool isTrustedAddress(string ipStr) const
+    {
+        final switch (mode)
+        {
+            case Mode.none: return false;
+            case Mode.all: return true;
+            case Mode.hops: return hopCount > 0;
+            case Mode.subnets:
+                ParsedIp ip;
+                if (!parseIpAddress(ipStr, ip))
+                    return false;
+                foreach (const ref cidr; trustedCidrs)
+                    if (cidr.matches(ip))
+                        return true;
+                return false;
+        }
+    }
+
+    private void addSpec(string spec)
+    {
+        const low = spec.strip.toLower;
+        if (low == "loopback")
+        {
+            addCidr("127.0.0.0/8");
+            addCidr("::1/128");
+        }
+        else if (low == "linklocal")
+        {
+            addCidr("169.254.0.0/16");
+            addCidr("fe80::/10");
+        }
+        else if (low == "uniquelocal")
+        {
+            addCidr("10.0.0.0/8");
+            addCidr("172.16.0.0/12");
+            addCidr("192.168.0.0/16");
+            addCidr("fc00::/7");
+        }
+        else
+        {
+            addCidr(spec);
+        }
+    }
+
+    private void addCidr(string spec)
+    {
+        IpCidr cidr;
+        if (!parseIpCidr(spec, cidr))
+            throw new Exception("Invalid trusted proxy IP/CIDR: " ~ spec);
+        trustedCidrs ~= cidr;
+    }
 }

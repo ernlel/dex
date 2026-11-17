@@ -7,15 +7,18 @@ import std.conv : to;
 import std.datetime : Clock, SysTime;
 import std.file : isDir, isFile, read, timeLastModified;
 import std.format : format;
+import std.json : JSONValue;
 import std.path : absolutePath, buildNormalizedPath, dirSeparator, extension;
 import std.stdio : stderr;
 import std.string : indexOf, split, startsWith, strip, toLower;
 import std.zlib : Compress, HeaderFormat;
 
-import dex.http : httpDate;
+import dex.http : httpDate, weakenETag;
 import dex.request : Request;
-import dex.response : Response;
+import dex.response : CookieOptions, Response, SameSite;
 import dex.router : Middleware, Next;
+public import dex.session : MemorySessionStore, Session, SessionStore,
+                              generateSessionId, signCookie, unsignCookie;
 
 /// Options for `serveStatic`.
 struct StaticOptions
@@ -316,6 +319,8 @@ Middleware compression(CompressionOptions options = CompressionOptions.init)
             {
                 response.setHeaderDirect("content-encoding", selectedEncoding);
                 response.appendHeaderDirect("vary", "Accept-Encoding");
+                if (auto currentEtag = response.get("etag"))
+                    response.setHeaderDirect("etag", weakenETag(currentEtag));
                 response.setBodyDirect(compressed);
             }
         }
@@ -575,6 +580,119 @@ Middleware bodyLimit(size_t maxBytes)
     return (Request request, Response response, Next next)
     {
         request.setBodyLimit(maxBytes);
+        next();
+    };
+}
+
+/// Options for `session` middleware.
+struct SessionOptions
+{
+    /// Primary HMAC-SHA256 secret used to sign session cookies.
+    /// Falls back to `app.cookieSecret` if empty.
+    string secret;
+
+    /// Multiple secrets for key rotation (`secrets[0]` signs; all verify).
+    string[] secrets;
+
+    /// Session cookie name. Defaults to `"dex.sid"`.
+    string cookieName = "dex.sid";
+
+    /// Session store time-to-live. Defaults to 24 hours.
+    Duration ttl = 24.dur!"hours";
+
+    /// Cookie attributes for the session cookie. Defaults to `httpOnly = true`
+    /// and `sameSite = SameSite.lax`.
+    CookieOptions cookie = CookieOptions("/", null, Duration.zero, true, false, SameSite.lax);
+
+    /// Custom `SessionStore` backend. Defaults to a thread-safe `MemorySessionStore`.
+    SessionStore store;
+
+    /// Save newly created, unmodified sessions to the store. Defaults to `false`.
+    bool saveUninitialized;
+
+    /// Refresh cookie & store expiration on every response. Defaults to `false`.
+    bool rolling;
+
+    /// Re-save existing unmodified sessions back to the store. Defaults to `false`.
+    bool resave;
+}
+
+/// Server-side session middleware using HMAC-SHA256 signed cookies and a
+/// pluggable `SessionStore` (defaulting to `MemorySessionStore`).
+///
+/// ---
+/// app.use(session(SessionOptions(secret: "super-secret-key")));
+///
+/// app.post("/login", (req, res) {
+///     req.session["user"] = "alice";
+///     res.send("ok");
+/// });
+/// ---
+Middleware session(SessionOptions options = SessionOptions.init)
+{
+    auto store = options.store !is null ? options.store : new MemorySessionStore;
+
+    return (Request request, Response response, Next next)
+    {
+        const(string)[] secrets = options.secrets;
+        if (secrets.length == 0 && options.secret.length != 0)
+            secrets = [options.secret];
+        if (secrets.length == 0 && request.app !is null)
+            secrets = request.app.cookieSecrets;
+        if (secrets.length == 0)
+            throw new Exception("session() requires a signing secret or app.cookieSecret");
+
+        Session sess;
+        if (auto rawCookie = options.cookieName in request.cookies)
+        {
+            string sid;
+            if (unsignCookie(*rawCookie, secrets, sid))
+            {
+                JSONValue[string] loaded;
+                if (store.get(sid, loaded))
+                    sess = new Session(sid, loaded, false);
+            }
+        }
+        if (sess is null)
+            sess = new Session(generateSessionId(), null, true);
+
+        request.setSession(sess);
+
+        response.onBeforeFinish((Response res)
+        {
+            CookieOptions cookieOpts = options.cookie;
+            cookieOpts.signed = true;
+            cookieOpts.secret = secrets[0];
+
+            if (sess.isDestroyed)
+            {
+                store.destroy(sess.id);
+                if (sess.replacedId.length != 0)
+                    store.destroy(sess.replacedId);
+                res.clearCookie(options.cookieName, cookieOpts);
+                return;
+            }
+
+            if (sess.wasRegenerated && sess.replacedId.length != 0)
+                store.destroy(sess.replacedId);
+
+            const shouldSave = sess.isModified ||
+                               (sess.isNew && options.saveUninitialized) ||
+                               (!sess.isNew && options.resave);
+
+            if (shouldSave)
+            {
+                store.set(sess.id, sess.rawData, options.ttl);
+                if (sess.isNew || sess.wasRegenerated || options.rolling)
+                    res.cookie(options.cookieName, sess.id, cookieOpts);
+            }
+            else if (!sess.isNew && options.rolling)
+            {
+                store.touch(sess.id, options.ttl);
+                res.cookie(options.cookieName, sess.id, cookieOpts);
+            }
+        });
+
         next();
     };
 }

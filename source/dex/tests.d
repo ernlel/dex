@@ -1340,3 +1340,456 @@ unittest
         assert(!sigApp.isListening);
     }
 }
+
+// v0.5.0: Reverse proxy support (`app.trustProxy`) and rateLimit integration.
+unittest
+{
+    // 1. Default trustProxy = false ignores forwarded headers
+    {
+        auto app = new App;
+        scope (exit) app.close();
+        app.get("/info", (req, res)
+        {
+            res.json([
+                "ip": req.ip,
+                "protocol": req.protocol,
+                "secure": req.secure ? "true" : "false",
+                "host": req.hostname
+            ]);
+        });
+        app.start(0, "127.0.0.1");
+
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("GET", "/info", null, null,
+                  "X-Forwarded-For: 203.0.113.5\r\n" ~
+                  "X-Forwarded-Proto: https\r\n" ~
+                  "X-Forwarded-Host: api.example.com:8443\r\n");
+        auto res = parseJSON(conn.read().body);
+        assert(res["ip"].str == "127.0.0.1");
+        assert(res["protocol"].str == "http");
+        assert(res["secure"].str == "false");
+        assert(res["host"].str == "localhost");
+    }
+
+    // 2. trustProxy = 1 hop prevents leftmost spoofing, trusts proto & host
+    {
+        auto app = new App;
+        scope (exit) app.close();
+        app.trustProxy = 1;
+        app.get("/info", (req, res)
+        {
+            res.json([
+                "ip": JSONValue(req.ip),
+                "ips": JSONValue(req.ips),
+                "protocol": JSONValue(req.protocol),
+                "secure": JSONValue(req.secure),
+                "host": JSONValue(req.hostname)
+            ]);
+        });
+        app.start(0, "127.0.0.1");
+
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("GET", "/info", null, null,
+                  "X-Forwarded-For: 1.2.3.4, 198.51.100.7\r\n" ~
+                  "X-Forwarded-Proto: https\r\n" ~
+                  "X-Forwarded-Host: app.example.com:443\r\n");
+        auto res = parseJSON(conn.read().body);
+        assert(res["ip"].str == "198.51.100.7");
+        assert(res["protocol"].str == "https");
+        assert(res["secure"].boolean == true);
+        assert(res["host"].str == "app.example.com");
+    }
+
+    // 3. trustProxy CIDR list + rateLimit per forwarded client IP
+    {
+        import core.time : dur;
+
+        auto app = new App;
+        scope (exit) app.close();
+        app.trustProxy = ["loopback", "10.0.0.0/8"];
+        RateLimitOptions rl;
+        rl.max = 1;
+        rl.window = 10.dur!"seconds";
+        app.use(rateLimit(rl));
+        app.get("/rl", (req, res) { res.send(req.ip); });
+        app.start(0, "127.0.0.1");
+
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+
+        // Client A passes through internal proxy 10.0.0.5
+        conn.send("GET", "/rl", null, null, "X-Forwarded-For: 9.9.9.9, 203.0.113.10, 10.0.0.5\r\n");
+        auto r1 = conn.read();
+        assert(r1.status == 200);
+        assert(r1.body == "203.0.113.10");
+
+        // Client A second request hits 429
+        conn.send("GET", "/rl", null, null, "X-Forwarded-For: 203.0.113.10, 10.0.0.5\r\n");
+        assert(conn.read().status == 429);
+
+        // Client B gets its own bucket
+        conn.send("GET", "/rl", null, null, "X-Forwarded-For: 203.0.113.11, 10.0.0.5\r\n");
+        auto r3 = conn.read();
+        assert(r3.status == 200);
+        assert(r3.body == "203.0.113.11");
+    }
+}
+
+// v0.5.0: HTTP caching (`ETag`, `304`, `req.fresh`), `res.download`, and `streamFile` cookies.
+unittest
+{
+    import std.file : remove, write;
+    import std.process : thisProcessID;
+
+    const testFile = "/tmp/dex-v050-cache-" ~ to!string(thisProcessID) ~ ".txt";
+    write(testFile, "Hello cached world!");
+    scope (exit)
+    {
+        if (exists(testFile))
+            remove(testFile);
+    }
+
+    auto app = new App;
+    scope (exit) app.close();
+
+    app.get("/data", (req, res) { res.json(["hello": "world"]); });
+    app.get("/manual", (req, res)
+    {
+        res.etag(`"v1"`);
+        if (req.fresh)
+        {
+            res.status(304).end();
+            return;
+        }
+        res.send("fresh-payload");
+    });
+    app.get("/file", (req, res)
+    {
+        res.cookie("dl", "yes");
+        res.sendFile(testFile);
+    });
+    app.get("/download", (req, res)
+    {
+        res.download(testFile, `my "report".txt`);
+    });
+    app.get("/download-utf8", (req, res)
+    {
+        res.download(testFile, "raportas-ž.txt");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto conn = TestConnection.connect(app.port);
+    scope (exit) conn.close();
+
+    // Dynamic JSON ETag -> 304
+    conn.send("GET", "/data");
+    auto d1 = conn.read();
+    assert(d1.status == 200);
+    assert("etag" in d1.headers);
+    const etag = d1.headers["etag"];
+
+    conn.send("GET", "/data", null, null, "If-None-Match: " ~ etag ~ "\r\n");
+    auto d2 = conn.read();
+    assert(d2.status == 304);
+    assert(d2.body == "");
+
+    // Manual req.fresh check
+    conn.send("GET", "/manual", null, null, "If-None-Match: \"v1\"\r\n");
+    assert(conn.read().status == 304);
+
+    // sendFile emits Set-Cookie + ETag + Last-Modified and honors If-None-Match & If-Modified-Since
+    conn.send("GET", "/file");
+    auto f1 = conn.read();
+    assert(f1.status == 200);
+    assert(f1.body == "Hello cached world!");
+    assert("set-cookie" in f1.headers);
+    assert("etag" in f1.headers);
+    assert("last-modified" in f1.headers);
+
+    conn.send("GET", "/file", null, null, "If-None-Match: " ~ f1.headers["etag"] ~ "\r\n");
+    assert(conn.read().status == 304);
+
+    conn.send("GET", "/file", null, null, "If-Modified-Since: " ~ f1.headers["last-modified"] ~ "\r\n");
+    assert(conn.read().status == 304);
+
+    // res.download sets safe Content-Disposition attachment
+    conn.send("GET", "/download");
+    auto dl = conn.read();
+    assert(dl.status == 200);
+    assert(dl.headers["content-disposition"] == `attachment; filename="my _report_.txt"`);
+    assert(dl.body == "Hello cached world!");
+
+    conn.send("GET", "/download-utf8");
+    auto dlUtf8 = conn.read();
+    assert(dlUtf8.status == 200);
+    assert(dlUtf8.headers["content-disposition"].indexOf("filename*=UTF-8''") >= 0);
+}
+
+// v0.5.0: Typed binding (`req.bind!T`, `req.bindQuery!T`) with defaults, @optional, Nullable, enums.
+unittest
+{
+    import std.typecons : Nullable;
+
+    enum Priority { low, normal, high }
+    static struct Meta { string source; @optional string tag; }
+    static struct CreateItem
+    {
+        string title;
+        int quantity = 1;
+        Priority priority = Priority.normal;
+        Nullable!string note;
+        Meta meta;
+    }
+    static struct SearchQuery
+    {
+        string q;
+        int page = 1;
+        bool active = false;
+        Priority[] levels = null;
+    }
+
+    auto app = new App;
+    scope (exit) app.close();
+    app.logErrors = false;
+
+    app.post("/items", (req, res)
+    {
+        auto item = req.bind!CreateItem();
+        res.status(201).json(item);
+    });
+    app.get("/search", (req, res)
+    {
+        auto q = req.bindQuery!SearchQuery();
+        res.json(q);
+    });
+    app.use((Throwable err, Request req, Response res, Next next)
+    {
+        if (auto httpErr = cast(HttpError) err)
+            res.status(httpErr.status).json(["error": httpErr.msg]);
+        else
+            next(err);
+    });
+
+    app.start(0, "127.0.0.1");
+    auto conn = TestConnection.connect(app.port);
+    scope (exit) conn.close();
+
+    // Valid JSON binding with defaults & nested struct
+    conn.send("POST", "/items", `{"title":"Book","meta":{"source":"web"}}`, "application/json");
+    auto r1 = conn.read();
+    assert(r1.status == 201, r1.body);
+    auto j1 = parseJSON(r1.body);
+    assert(j1["title"].str == "Book");
+    assert(j1["quantity"].integer == 1);
+    assert(j1["priority"].str == "normal");
+    assert(j1["note"].type == JSONType.null_);
+    assert(j1["meta"]["source"].str == "web");
+
+    // Missing nested required field -> 422 with field path
+    conn.send("POST", "/items", `{"title":"Book","meta":{}}`, "application/json");
+    auto r2 = conn.read();
+    assert(r2.status == 422);
+    assert(parseJSON(r2.body)["error"].str.indexOf("meta.source") >= 0);
+
+    // Wrong field type -> 422
+    conn.send("POST", "/items", `{"title":"Book","quantity":"many","meta":{"source":"web"}}`, "application/json");
+    auto r3 = conn.read();
+    assert(r3.status == 422);
+    assert(parseJSON(r3.body)["error"].str.indexOf("quantity") >= 0);
+
+    // Query binding with type coercion & repeated params
+    conn.send("GET", "/search?q=dlang&page=3&active=true&levels=low&levels=high");
+    auto r4 = conn.read();
+    assert(r4.status == 200, r4.body);
+    auto j4 = parseJSON(r4.body);
+    assert(j4["q"].str == "dlang");
+    assert(j4["page"].integer == 3);
+    assert(j4["active"].boolean == true);
+    assert(j4["levels"].array.length == 2);
+}
+
+// v0.5.0: Variadic route chains, `router.param`, `app.route(path)`, `req.accepts` / `res.format`, `405`.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.handleMethodNotAllowed = true;
+
+    int paramCalls = 0;
+    app.param("id", (req, res, next, val)
+    {
+        ++paramCalls;
+        if (val == "0")
+        {
+            res.status(404).send("missing-param");
+            return;
+        }
+        res.set("x-param-id", val);
+        next();
+    });
+
+    Middleware addStep(string step)
+    {
+        return (req, res, next)
+        {
+            res.append("x-steps", step);
+            next();
+        };
+    }
+
+    // 5 middlewares + terminal handler (> old 3-handler limit)
+    app.get("/chain/:id",
+            addStep("1"), addStep("2"), addStep("3"), addStep("4"), addStep("5"),
+            (req, res) { res.send("ok:" ~ req.params["id"]); });
+
+    // Fluent app.route(path)
+    app.route("/widgets/:id")
+       .get((req, res) { res.send("get:" ~ req.params["id"]); })
+       .post((req, res) { res.status(201).send("post:" ~ req.params["id"]); })
+       .del((req, res) { res.send("del:" ~ req.params["id"]); });
+
+    // Content negotiation
+    app.get("/content", (req, res)
+    {
+        res.format([
+            "html": (Request r, Response w) { w.send("<h1>hi</h1>"); },
+            "json": (Request r, Response w) { w.json(["msg": "hi"]); }
+        ]);
+    });
+
+    app.start(0, "127.0.0.1");
+    auto conn = TestConnection.connect(app.port);
+    scope (exit) conn.close();
+
+    // Variadic chain + param
+    conn.send("GET", "/chain/42");
+    auto c1 = conn.read();
+    assert(c1.status == 200);
+    assert(c1.body == "ok:42");
+    assert(c1.headers["x-steps"] == "1, 2, 3, 4, 5");
+    assert(c1.headers["x-param-id"] == "42");
+    assert(paramCalls == 1);
+
+    // Param short-circuit
+    conn.send("GET", "/chain/0");
+    auto c2 = conn.read();
+    assert(c2.status == 404);
+    assert(c2.body == "missing-param");
+
+    // Fluent route + 405 Method Not Allowed
+    conn.send("POST", "/widgets/7");
+    assert(conn.read().status == 201);
+    conn.send("DELETE", "/widgets/7");
+    assert(conn.read().body == "del:7");
+
+    conn.send("PATCH", "/widgets/7");
+    auto mna = conn.read();
+    assert(mna.status == 405);
+    assert(mna.headers["allow"].indexOf("GET") >= 0);
+    assert(mna.headers["allow"].indexOf("HEAD") >= 0);
+    assert(mna.headers["allow"].indexOf("POST") >= 0);
+    assert(mna.headers["allow"].indexOf("DELETE") >= 0);
+
+    // Content negotiation
+    conn.send("GET", "/content", null, null, "Accept: text/html;q=0.5, application/json;q=0.9\r\n");
+    auto n1 = conn.read();
+    assert(n1.status == 200);
+    assert(n1.headers["content-type"].indexOf("application/json") >= 0);
+    assert(parseJSON(n1.body)["msg"].str == "hi");
+
+    conn.send("GET", "/content", null, null, "Accept: application/xml\r\n");
+    assert(conn.read().status == 406);
+}
+
+// v0.5.0: Signed cookies (including key rotation) & `session()` middleware.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.cookieSecrets = ["new-secret", "old-secret"];
+
+    app.use(session());
+
+    app.get("/set-signed", (req, res)
+    {
+        res.signedCookie("uid", "user-99");
+        res.send("signed");
+    });
+    app.get("/read-signed", (req, res)
+    {
+        const v = req.signedCookie("uid");
+        res.send(v is null ? "invalid" : v);
+    });
+    app.post("/login", (req, res)
+    {
+        req.session.regenerate();
+        req.session["user"] = "alice";
+        req.session["count"] = 1;
+        res.json(["id": req.session.id, "user": "alice"]);
+    });
+    app.get("/me", (req, res)
+    {
+        if (!req.session.has("user"))
+        {
+            res.status(401).send("anon");
+            return;
+        }
+        const count = req.session.get!int("count", 0) + 1;
+        req.session["count"] = count;
+        res.json(["id": JSONValue(req.session.id),
+                  "user": JSONValue(req.session.get!string("user")),
+                  "count": JSONValue(count)]);
+    });
+    app.post("/logout", (req, res)
+    {
+        req.session.destroy();
+        res.send("bye");
+    });
+
+    app.start(0, "127.0.0.1");
+    auto conn = TestConnection.connect(app.port);
+    scope (exit) conn.close();
+
+    // Signed cookie verification & tampering rejection & key rotation
+    conn.send("GET", "/set-signed");
+    auto sc = conn.read();
+    const rawCookie = sc.headers["set-cookie"].split(";")[0];
+    conn.send("GET", "/read-signed", null, null, "Cookie: " ~ rawCookie ~ "\r\n");
+    assert(conn.read().body == "user-99");
+
+    conn.send("GET", "/read-signed", null, null, "Cookie: uid=s%3Auser-99.tampered\r\n");
+    assert(conn.read().body == "invalid");
+
+    const rotatedCookie = "uid=" ~ signCookie("user-77", "old-secret");
+    conn.send("GET", "/read-signed", null, null, "Cookie: " ~ rotatedCookie ~ "\r\n");
+    assert(conn.read().body == "user-77");
+
+    // Session lifecycle: unauthenticated -> login -> persisted -> logout
+    conn.send("GET", "/me");
+    auto unauth = conn.read();
+    assert(unauth.status == 401);
+    assert("set-cookie" !in unauth.headers); // saveUninitialized = false
+
+    conn.send("POST", "/login");
+    auto loginRes = conn.read();
+    assert(loginRes.status == 200);
+    assert("set-cookie" in loginRes.headers);
+    const sidCookie = loginRes.headers["set-cookie"].split(";")[0];
+
+    conn.send("GET", "/me", null, null, "Cookie: " ~ sidCookie ~ "\r\n");
+    auto meRes = conn.read();
+    assert(meRes.status == 200);
+    auto meJson = parseJSON(meRes.body);
+    assert(meJson["user"].str == "alice");
+    assert(meJson["count"].integer == 2);
+
+    conn.send("POST", "/logout", null, null, "Cookie: " ~ sidCookie ~ "\r\n");
+    auto outRes = conn.read();
+    assert(outRes.status == 200);
+    assert(outRes.headers["set-cookie"].indexOf("Max-Age=0") >= 0);
+
+    conn.send("GET", "/me", null, null, "Cookie: " ~ sidCookie ~ "\r\n");
+    assert(conn.read().status == 401);
+}

@@ -2,13 +2,18 @@
 module dex.request;
 
 import std.array : join;
+import std.datetime : SysTime;
 import std.json : JSONException, JSONType, JSONValue, parseJSON;
-import std.string : endsWith, icmp, indexOf, startsWith, toLower;
+import std.string : endsWith, icmp, indexOf, split, startsWith, strip, toLower;
 
 import dex.app : App;
 import dex.errors : HttpError;
-import dex.http : decodePath, hostName, mediaType, mimeType, parseCookies,
-                  parseQueryString;
+import dex.http : decodePath, hostName, matchesIfNoneMatch, mediaType, mimeType,
+                  negotiateAccept, parseCookies, parseHttpDate, parseQueryString,
+                  TrustProxy;
+import dex.jsonx : fromJSONValue, fromStringMap;
+import dex.response : Response;
+import dex.session : Session, unsignCookie;
 
 /// An incoming HTTP request.
 ///
@@ -44,6 +49,8 @@ class Request
     string[][string] headers;
     /// Parsed cookies.
     string[string] cookies;
+    /// Verified signed cookies (populated when `app.cookieSecret` / `cookieSecrets` is set).
+    string[string] signedCookies;
 
     /// Raw request body bytes as a string.
     ///
@@ -73,19 +80,30 @@ class Request
     private JSONValue _body;
     private bool _bodyParsed;
 
-    /// Remote IP address.
+    /// Remote IP address (resolved through `app.trustProxy` when enabled).
     string ip;
-    /// `"http"` (or `"https"` for an absolute HTTPS request target).
+    /// Proxy IP chain when `app.trustProxy` is enabled (from client to nearest proxy).
+    string[] ips;
+    /// `"http"` (or `"https"` for an absolute HTTPS request target or trusted `X-Forwarded-Proto`).
     string protocol = "http";
-    /// Whether the request arrived over TLS.
+    /// Whether the request arrived over TLS (or trusted `X-Forwarded-Proto: https`).
     bool secure;
     /// Whether the request was made with `X-Requested-With: XMLHttpRequest`.
     bool xhr;
 
+    private string _socketIp;
+    private string _trustedHost;
+    private Session _session;
     package App _app;
+    package Response _response;
 
     /// The application instance handling this request.
     @property App app() { return _app; }
+
+    /// Active server-side session attached by `session()` middleware, or `null`.
+    @property Session session() { return _session; }
+
+    package void setSession(Session s) { _session = s; }
 
     package this()
     {
@@ -162,6 +180,8 @@ class Request
         this.httpVersion = httpVersion;
         this.headers = headers;
         this.ip = ip;
+        this._socketIp = ip;
+        this.ips = ip.length ? [ip] : null;
         this.originalUrl = rawTarget.length ? rawTarget : "/";
 
         auto target = rawTarget;
@@ -316,10 +336,110 @@ class Request
         return value is null ? null : *value;
     }
 
-    /// Request `Host` header without the port.
+    /// Return a verified signed cookie value, or `null` if missing or invalid.
+    string signedCookie(string name, string secret = null) const
+    {
+        if (secret.length == 0)
+        {
+            auto value = name in signedCookies;
+            return value is null ? null : *value;
+        }
+        auto raw = name in cookies;
+        if (raw is null)
+            return null;
+        string unwrapped;
+        return unsignCookie(*raw, secret, unwrapped) ? unwrapped : null;
+    }
+
+    package void populateSignedCookies(const(string)[] secrets)
+    {
+        if (secrets.length == 0)
+            return;
+        foreach (name, raw; cookies)
+        {
+            string unwrapped;
+            if (unsignCookie(raw, secrets, unwrapped))
+                signedCookies[name] = unwrapped;
+        }
+    }
+
+    package void applyTrustProxy(const ref TrustProxy policy)
+    {
+        if (!policy.isTrustedAddress(_socketIp))
+        {
+            ip = _socketIp;
+            ips = _socketIp.length ? [_socketIp] : null;
+            return;
+        }
+
+        if (auto fwdHost = get("x-forwarded-host"))
+        {
+            const comma = fwdHost.indexOf(',');
+            const first = (comma >= 0 ? fwdHost[0 .. comma] : fwdHost).strip;
+            if (first.length != 0)
+                _trustedHost = first;
+        }
+
+        if (auto fwdProto = get("x-forwarded-proto"))
+        {
+            const comma = fwdProto.indexOf(',');
+            const first = (comma >= 0 ? fwdProto[0 .. comma] : fwdProto).strip.toLower;
+            if (first == "https")
+            {
+                protocol = "https";
+                secure = true;
+            }
+            else if (first == "http")
+            {
+                protocol = "http";
+                secure = false;
+            }
+        }
+
+        if (auto xff = "x-forwarded-for" in headers)
+        {
+            string[] forwarded;
+            foreach (part; (*xff).join(",").split(','))
+            {
+                const entry = part.strip;
+                if (entry.length != 0)
+                    forwarded ~= entry;
+            }
+
+            if (forwarded.length != 0)
+            {
+                string[] chain = forwarded ~ (_socketIp.length ? [_socketIp] : null);
+                final switch (policy.mode)
+                {
+                    case TrustProxy.Mode.none:
+                        break;
+                    case TrustProxy.Mode.all:
+                        ips = chain;
+                        ip = chain[0];
+                        break;
+                    case TrustProxy.Mode.hops:
+                        const idx = chain.length > policy.hopCount
+                            ? chain.length - 1 - policy.hopCount
+                            : 0;
+                        ips = chain[idx .. $];
+                        ip = ips[0];
+                        break;
+                    case TrustProxy.Mode.subnets:
+                        size_t idx = forwarded.length - 1;
+                        while (idx > 0 && policy.isTrustedAddress(forwarded[idx]))
+                            --idx;
+                        ips = forwarded[idx .. $] ~ (_socketIp.length ? [_socketIp] : null);
+                        ip = ips[0];
+                        break;
+                }
+            }
+        }
+    }
+
+    /// Request `Host` header (or trusted `X-Forwarded-Host`) without the port.
     string hostname() const
     {
-        return hostName(get("host"));
+        return hostName(_trustedHost.length ? _trustedHost : get("host"));
     }
 
     /// Alias for `hostname`.
@@ -364,5 +484,105 @@ class Request
         {
             throw new HttpError(400, "Invalid body field: " ~ name, __FILE__, __LINE__, e);
         }
+    }
+
+    /// Deserialize and validate the request body (JSON or URL-encoded form)
+    /// into D struct/class `T`.
+    ///
+    /// Throws `HttpError` (`400` for malformed JSON, `errorStatus` defaulting
+    /// to `422` for missing required fields or type mismatches).
+    T bind(T)(ushort errorStatus = 422)
+    {
+        import std.traits : Unqual;
+
+        const ct = contentType;
+        if (ct == "application/x-www-form-urlencoded")
+        {
+            static if (is(Unqual!T == struct) || is(Unqual!T == class))
+            {
+                string[][string] formMap;
+                foreach (pair; parseQueryString(rawBody))
+                    formMap[pair.key] ~= pair.value;
+                return fromStringMap!T(formMap, "", errorStatus);
+            }
+            else
+            {
+                throw new HttpError(415, "Form body cannot bind to non-object type");
+            }
+        }
+
+        auto parsed = body;
+        if (parsed.type == JSONType.null_ && rawBody.length == 0)
+            parsed = JSONValue(string[string].init);
+        return fromJSONValue!T(parsed, "", errorStatus);
+    }
+
+    /// Deserialize and validate query string parameters (`req.queryAll`)
+    /// into D struct/class `T`.
+    T bindQuery(T)(ushort errorStatus = 400) const
+    {
+        return fromStringMap!T(queryAll, "", errorStatus);
+    }
+
+    /// Select the best matching content type from `types` according to the
+    /// request's `Accept` header. Accepts MIME types or extensions (`"json"`, `"html"`).
+    /// Returns the winning entry from `types`, or `null` if none are acceptable.
+    string accepts(const(string)[] types...) const
+    {
+        return negotiateAccept(get("accept"), types);
+    }
+
+    /// Whether the client's cached representation is still fresh (`304 Not Modified`)
+    /// based on `If-None-Match` / `If-Modified-Since` and the response's `ETag` / `Last-Modified`.
+    @property bool fresh() const
+    {
+        if (method != "GET" && method != "HEAD")
+            return false;
+        if (_response is null)
+            return false;
+        const status = _response.statusCode;
+        if ((status < 200 || status >= 300) && status != 304)
+            return false;
+        return isFreshFor(_response.get("etag"), _response.get("last-modified"));
+    }
+
+    /// Inverse of `fresh`.
+    @property bool stale() const
+    {
+        return !fresh;
+    }
+
+    package bool isFreshFor(string etag, string lastModified) const
+    {
+        if (method != "GET" && method != "HEAD")
+            return false;
+
+        const cc = get("cache-control");
+        if (cc !is null && cc.toLower.indexOf("no-cache") >= 0)
+            return false;
+
+        const inm = get("if-none-match");
+        const ims = get("if-modified-since");
+        if (inm is null && ims is null)
+            return false;
+
+        if (inm !is null)
+        {
+            if (etag is null || !matchesIfNoneMatch(inm, etag))
+                return false;
+        }
+
+        if (ims !is null && inm is null)
+        {
+            if (lastModified is null)
+                return false;
+            SysTime clientTime, resourceTime;
+            if (!parseHttpDate(ims, clientTime) || !parseHttpDate(lastModified, resourceTime))
+                return false;
+            if (resourceTime > clientTime)
+                return false;
+        }
+
+        return true;
     }
 }

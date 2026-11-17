@@ -3,10 +3,12 @@ module dex.app;
 
 import core.thread : Thread;
 import core.time : Duration, dur;
+import std.array : join;
 import std.json : JSONValue;
 import std.stdio : stderr;
 
 import dex.errors : HttpError;
+import dex.http : TrustProxy;
 import dex.request : Request;
 import dex.response : Response;
 import dex.router : Router;
@@ -57,6 +59,35 @@ class App : Router
 
     /// Whether to cache compiled view templates in memory. Defaults to `false`.
     bool cacheViews;
+
+    /// Reverse proxy trust policy for `X-Forwarded-*` headers (`req.ip`,
+    /// `req.ips`, `req.protocol`, `req.secure`, `req.hostname`).
+    TrustProxy trustProxy;
+
+    /// Automatically generate `ETag` headers and handle `304 Not Modified`
+    /// conditional requests (`If-None-Match` / `If-Modified-Since`).
+    /// Defaults to `true`.
+    bool etag = true;
+
+    /// Respond with `405 Method Not Allowed` and an `Allow` header when a path
+    /// matches registered routes for other HTTP methods. Defaults to `false`.
+    bool handleMethodNotAllowed;
+
+    /// Secret keys used to sign and verify cookies (`secrets[0]` signs; all
+    /// keys are accepted for verification to support rotation).
+    string[] cookieSecrets;
+
+    /// Set a single cookie signing/verification secret.
+    @property void cookieSecret(string secret)
+    {
+        cookieSecrets = secret.length ? [secret] : null;
+    }
+
+    /// Primary cookie signing secret, or `null` if unset.
+    @property string cookieSecret() const
+    {
+        return cookieSecrets.length ? cookieSecrets[0] : null;
+    }
 
     private ViewRenderer[string] _viewEngines;
     private TemplateCache _templateCache;
@@ -223,6 +254,10 @@ class App : Router
     {
         response._app = this;
         request._app = this;
+        request._response = response;
+        request.applyTrustProxy(trustProxy);
+        if (cookieSecrets.length != 0)
+            request.populateSignedCookies(cookieSecrets);
         try
         {
             dispatch(request, response, () { finalHandler(request, response); });
@@ -262,6 +297,18 @@ class App : Router
     {
         if (response.finished)
             return;
+        if (handleMethodNotAllowed)
+        {
+            auto allowed = allowedMethods(request.rawPath);
+            if (allowed.length != 0)
+            {
+                response.set("allow", allowed.join(", "))
+                        .status(405)
+                        .type("text")
+                        .send("Method Not Allowed");
+                return;
+            }
+        }
         response.status(404).type("text")
                 .send("Cannot " ~ request.method ~ " " ~ request.originalUrl);
     }

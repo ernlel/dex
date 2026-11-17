@@ -755,7 +755,14 @@ package class HttpServer
                         header.put("HTTP/1.1 416 Range Not Satisfiable\r\n");
                         header.put("Content-Range: bytes */");
                         header.put(to!string(fileSize));
-                        header.put("\r\nContent-Length: 0\r\nConnection: ");
+                        header.put("\r\n");
+                        foreach (cookie; response._setCookies)
+                        {
+                            header.put("Set-Cookie: ");
+                            header.put(cookie);
+                            header.put("\r\n");
+                        }
+                        header.put("Content-Length: 0\r\nConnection: ");
                         header.put(keepAlive ? "keep-alive" : "close");
                         header.put("\r\n\r\n");
                         sendAll(socket, header.data);
@@ -802,6 +809,13 @@ package class HttpServer
         }
         if ("server" !in response._headers)
             output.put("Server: dex\r\n");
+
+        foreach (cookie; response._setCookies)
+        {
+            output.put("Set-Cookie: ");
+            output.put(cookie);
+            output.put("\r\n");
+        }
 
         output.put("Accept-Ranges: bytes\r\n");
         if (isRange)
