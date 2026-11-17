@@ -558,6 +558,27 @@ Middleware rateLimit(RateLimitOptions options = RateLimitOptions.init)
     };
 }
 
+/// Override `app.maxBodySize` for a specific route or sub-router.
+///
+/// Allows capping individual routes tighter than the global default, or
+/// permitting larger payloads on dedicated upload endpoints. Throws
+/// `HttpError` (413) if the request body exceeds `maxBytes`.
+///
+/// ---
+/// app.maxBodySize = 64 * 1024; // 64 KiB default
+/// app.post("/upload", bodyLimit(50 * 1024 * 1024), (req, res) {
+///     res.send("uploaded");
+/// });
+/// ---
+Middleware bodyLimit(size_t maxBytes)
+{
+    return (Request request, Response response, Next next)
+    {
+        request.setBodyLimit(maxBytes);
+        next();
+    };
+}
+
 private string withTrailingSeparator(string path)
 {
     return path.length && path[$ - 1] == dirSeparator[0]

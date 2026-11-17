@@ -25,6 +25,15 @@ class App : Router
     /// Keep-alive idle timeout. Defaults to 60 seconds.
     Duration idleTimeout = dur!"seconds"(60);
 
+    /// Maximum time `close()` / graceful shutdown waits for in-flight
+    /// requests to complete before forcing connections closed.
+    /// Defaults to 5 seconds.
+    Duration shutdownTimeout = dur!"seconds"(5);
+
+    /// Install POSIX `SIGINT` and `SIGTERM` hooks during `listen()` / `wait()`
+    /// to trigger graceful shutdown automatically. Defaults to `true`.
+    bool handleSignals = true;
+
     /// Maximum accepted request body. Defaults to 10 MiB.
     size_t maxBodySize = 10 * 1024 * 1024;
 
@@ -138,33 +147,63 @@ class App : Router
         start(port, "0.0.0.0", onReady);
     }
 
-    /// Start the server and block until `close()` is called.
+    /// Start the server and block until `close()` or a shutdown signal arrives.
     void listen(ushort port, string host = "0.0.0.0",
                 void delegate() onReady = null)
     {
         start(port, host, onReady);
-        while (isListening)
-            Thread.sleep(dur!"msecs"(50));
+        wait();
     }
 
-    /// Start the server and block until `close()` is called.
+    /// Start the server and block until `close()` or a shutdown signal arrives.
     void listen(ushort port, void delegate() onReady)
     {
         listen(port, "0.0.0.0", onReady);
     }
 
-    /// Block until the server stops.
+    /// Block until the server stops (or a POSIX `SIGINT`/`SIGTERM` triggers
+    /// graceful shutdown when `handleSignals` is enabled).
     void wait()
     {
+        if (!isListening)
+            return;
+
+        version (Posix)
+        {
+            if (handleSignals)
+            {
+                SignalGuard guard;
+                guard.install();
+                while (isListening)
+                {
+                    if (consumeShutdownSignal())
+                    {
+                        close();
+                        break;
+                    }
+                    Thread.sleep(dur!"msecs"(50));
+                }
+                return;
+            }
+        }
+
         while (isListening)
             Thread.sleep(dur!"msecs"(50));
     }
 
-    /// Stop accepting connections and close active ones.
+    /// Stop accepting connections, wait up to `shutdownTimeout` for in-flight
+    /// requests to complete, and close active connections.
     void close()
     {
+        close(shutdownTimeout);
+    }
+
+    /// Stop accepting connections, wait up to `timeout` for in-flight
+    /// requests to complete, and close active connections.
+    void close(Duration timeout)
+    {
         if (_server !is null)
-            _server.close();
+            _server.close(timeout);
     }
 
     /// Whether the server is accepting connections.
@@ -242,5 +281,57 @@ class App : Router
 
         stderr.writefln("dex: %s %s: %s", request.method,
                         request.originalUrl, error.toString());
+    }
+}
+
+version (Posix)
+{
+    import core.atomic : atomicLoad, atomicStore;
+    import core.sys.posix.signal : sigaction, sigaction_t, sigemptyset,
+                                     SIGINT, SIGTERM, SA_RESTART;
+
+    private shared int _shutdownSignalRequested;
+
+    extern(C) private void handleShutdownSignal(int sig) nothrow @nogc
+    {
+        atomicStore(_shutdownSignalRequested, 1);
+    }
+
+    private bool consumeShutdownSignal()
+    {
+        if (atomicLoad(_shutdownSignalRequested) == 0)
+            return false;
+        atomicStore(_shutdownSignalRequested, 0);
+        return true;
+    }
+
+    private struct SignalGuard
+    {
+        private sigaction_t _prevInt;
+        private sigaction_t _prevTerm;
+        private bool _intInstalled;
+        private bool _termInstalled;
+
+        void install()
+        {
+            atomicStore(_shutdownSignalRequested, 0);
+            sigaction_t sa;
+            sa.sa_handler = &handleShutdownSignal;
+            sigemptyset(&sa.sa_mask);
+            sa.sa_flags = SA_RESTART;
+
+            if (sigaction(SIGINT, &sa, &_prevInt) == 0)
+                _intInstalled = true;
+            if (sigaction(SIGTERM, &sa, &_prevTerm) == 0)
+                _termInstalled = true;
+        }
+
+        ~this()
+        {
+            if (_intInstalled)
+                sigaction(SIGINT, &_prevInt, null);
+            if (_termInstalled)
+                sigaction(SIGTERM, &_prevTerm, null);
+        }
     }
 }

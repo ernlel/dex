@@ -1116,3 +1116,227 @@ unittest
     assert("retry-after" in res3.headers);
     assert(res3.headers["ratelimit-remaining"] == "0");
 }
+
+// Per-route body size limits (`bodyLimit` middleware): both raising above
+// and tightening below `app.maxBodySize`, including chunked & 100-continue.
+unittest
+{
+    auto app = new App;
+    scope (exit) app.close();
+    app.maxBodySize = 16;
+
+    app.post("/default", (req, res) { res.send(req.rawBody); });
+    app.post("/upload", bodyLimit(128), (req, res) { res.send(req.rawBody); });
+    app.post("/tight", bodyLimit(4), (req, res) { res.send(req.rawBody); });
+    app.post("/ignore", (req, res) { res.send("ok"); });
+    app.get("/after", (req, res) { res.send("after"); });
+
+    app.start(0, "127.0.0.1");
+
+    // 1. Default route rejects payloads > 16 bytes
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("POST", "/default", replicate("a", 32), "text/plain");
+        auto res = conn.read();
+        assert(res.status == 413);
+    }
+
+    // 2. Upload route allows 32 bytes (> app.maxBodySize) and rejects 200 (> 128)
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        const payload32 = replicate("b", 32);
+        conn.send("POST", "/upload", payload32, "text/plain");
+        auto res1 = conn.read();
+        assert(res1.status == 200);
+        assert(res1.body == payload32);
+
+        conn.send("POST", "/upload", replicate("c", 200), "text/plain");
+        auto res2 = conn.read();
+        assert(res2.status == 413);
+    }
+
+    // 3. Tight route caps at 4 bytes (< app.maxBodySize)
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("POST", "/tight", "1234", "text/plain");
+        assert(conn.read().status == 200);
+
+        conn.send("POST", "/tight", "12345", "text/plain");
+        assert(conn.read().status == 413);
+    }
+
+    // 4. Chunked body respects per-route bodyLimit
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        const body32 = replicate("z", 32);
+        conn.sendRaw("POST /upload HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Transfer-Encoding: chunked\r\n\r\n" ~
+                     "20\r\n" ~ body32 ~ "\r\n0\r\n\r\n");
+        conn.lastMethod = "POST";
+        auto res = conn.read();
+        assert(res.status == 200);
+        assert(res.body == body32);
+
+        conn.sendRaw("POST /tight HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Transfer-Encoding: chunked\r\n\r\n" ~
+                     "5\r\n12345\r\n0\r\n\r\n");
+        conn.lastMethod = "POST";
+        assert(conn.read().status == 413);
+    }
+
+    // 5. Expect: 100-continue rejects early when exceeding tight limit,
+    //    and succeeds when permitted by upload limit.
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.sendRaw("POST /tight HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Content-Length: 10\r\n" ~
+                     "Expect: 100-continue\r\n\r\n");
+        conn.lastMethod = "POST";
+        auto res = conn.read();
+        assert(res.status == 413);
+        assert(res.headers["connection"] == "close");
+    }
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        const payload32 = replicate("e", 32);
+        conn.sendRaw("POST /upload HTTP/1.1\r\n" ~
+                     "Host: localhost\r\n" ~
+                     "Content-Length: 32\r\n" ~
+                     "Expect: 100-continue\r\n\r\n");
+        conn.lastMethod = "POST";
+        assert(conn.read().status == 100);
+        conn.sendRaw(payload32);
+        auto res = conn.read();
+        assert(res.status == 200);
+        assert(res.body == payload32);
+    }
+
+    // 6. Keep-alive stays synchronized when handler ignores unread body within limit
+    {
+        auto conn = TestConnection.connect(app.port);
+        scope (exit) conn.close();
+        conn.send("POST", "/ignore", "12345678", "text/plain");
+        assert(conn.read().body == "ok");
+        conn.send("GET", "/after");
+        assert(conn.read().body == "after");
+    }
+}
+
+// Graceful shutdown: waits for in-flight requests, sends `Connection: close`,
+// immediately closes idle keep-alive connections, and honors POSIX signals.
+unittest
+{
+    import core.sync.condition : Condition;
+    import core.sync.mutex : Mutex;
+    import core.time : dur, MonoTime;
+
+    auto app = new App;
+    scope (exit) app.close();
+    app.shutdownTimeout = dur!"seconds"(2);
+
+    auto gateMutex = new Mutex;
+    auto enteredCond = new Condition(gateMutex);
+    bool handlerEntered = false;
+
+    app.get("/slow", (req, res)
+    {
+        synchronized (gateMutex)
+        {
+            handlerEntered = true;
+            enteredCond.notifyAll();
+        }
+        Thread.sleep(dur!"msecs"(150));
+        res.send("finished-gracefully");
+    });
+    app.get("/idle", (req, res) { res.send("idle-ok"); });
+
+    app.start(0, "127.0.0.1");
+
+    // Open an idle keep-alive connection first
+    auto idleConn = TestConnection.connect(app.port);
+    scope (exit) idleConn.close();
+    idleConn.send("GET", "/idle");
+    assert(idleConn.read().body == "idle-ok");
+
+    // Start an in-flight request on a second connection
+    auto slowConn = TestConnection.connect(app.port);
+    scope (exit) slowConn.close();
+    slowConn.send("GET", "/slow");
+
+    synchronized (gateMutex)
+    {
+        while (!handlerEntered)
+            enteredCond.wait();
+    }
+
+    // Trigger graceful shutdown while `/slow` is in-flight and `idleConn` is idle
+    const shutdownStart = MonoTime.currTime;
+    app.close();
+    const shutdownElapsed = MonoTime.currTime - shutdownStart;
+
+    // Must have waited for `/slow` (~150ms) rather than cutting it off or stalling 2s
+    assert(shutdownElapsed >= dur!"msecs"(100));
+    assert(shutdownElapsed < dur!"seconds"(1));
+
+    // In-flight request must have completed with `Connection: close`
+    auto slowRes = slowConn.read();
+    assert(slowRes.status == 200);
+    assert(slowRes.body == "finished-gracefully");
+    assert(slowRes.headers["connection"] == "close");
+
+    // Server must no longer be listening
+    assert(!app.isListening);
+
+    // Test POSIX SIGTERM triggers graceful shutdown inside `listen()`
+    version (Posix)
+    {
+        import core.sys.posix.signal : kill, SIGTERM;
+        import core.sys.posix.unistd : getpid;
+
+        auto sigApp = new App;
+        sigApp.shutdownTimeout = dur!"seconds"(2);
+        sigApp.get("/ping", (req, res) { res.send("pong"); });
+
+        auto readyMutex = new Mutex;
+        auto readyCond = new Condition(readyMutex);
+        bool listening = false;
+        ushort sigPort = 0;
+
+        auto listenerThread = new Thread({
+            sigApp.listen(0, "127.0.0.1", ()
+            {
+                synchronized (readyMutex)
+                {
+                    sigPort = sigApp.port;
+                    listening = true;
+                    readyCond.notifyAll();
+                }
+            });
+        });
+        listenerThread.start();
+
+        synchronized (readyMutex)
+        {
+            while (!listening)
+                readyCond.wait();
+        }
+
+        auto conn = TestConnection.connect(sigPort);
+        scope (exit) conn.close();
+        conn.send("GET", "/ping");
+        assert(conn.read().body == "pong");
+
+        kill(getpid(), SIGTERM);
+        listenerThread.join();
+        assert(!sigApp.isListening);
+    }
+}

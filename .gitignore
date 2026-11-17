@@ -7,6 +7,7 @@ dub.selections.json
 *.exe
 *.pdb
 /dex-test-library
+/dex-test-runner
 /examples/hello/hello
 /examples/todos/todos
 /examples/api-server/api-server

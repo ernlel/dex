@@ -46,7 +46,29 @@ class Request
     string[string] cookies;
 
     /// Raw request body bytes as a string.
-    string rawBody;
+    ///
+    /// Loaded from the socket on first access when deferred by the server.
+    /// Throws `HttpError` (413) if the body exceeds `maxBodySize`.
+    @property string rawBody()
+    {
+        ensureBodyLoaded();
+        return _rawBody;
+    }
+
+    /// Maximum request body size permitted for this request, in bytes.
+    @property size_t maxBodySize() const
+    {
+        return _maxBodySize;
+    }
+
+    private string _rawBody;
+    private bool _bodyLoaded = true;
+    package bool _bodyRejected;
+    private Throwable _bodyLoadError;
+    package size_t _maxBodySize = size_t.max;
+    private size_t _declaredContentLength;
+    private bool _hasPendingBody;
+    private ubyte[] delegate(size_t maxBytes) _bodyLoader;
 
     private JSONValue _body;
     private bool _bodyParsed;
@@ -71,6 +93,70 @@ class Request
 
     package this(string method, string rawTarget, string httpVersion,
                  string[][string] headers, ubyte[] rawBodyBytes, string ip)
+    {
+        initFromTargetAndHeaders(method, rawTarget, httpVersion, headers, ip);
+        _rawBody = cast(string) rawBodyBytes;
+        _bodyLoaded = true;
+    }
+
+    package this(string method, string rawTarget, string httpVersion,
+                 string[][string] headers, string ip, size_t maxBodySize,
+                 bool hasPendingBody, size_t declaredContentLength,
+                 ubyte[] delegate(size_t maxBytes) bodyLoader)
+    {
+        initFromTargetAndHeaders(method, rawTarget, httpVersion, headers, ip);
+        _maxBodySize = maxBodySize;
+        _hasPendingBody = hasPendingBody;
+        _declaredContentLength = declaredContentLength;
+        _bodyLoader = bodyLoader;
+        _bodyLoaded = !hasPendingBody;
+    }
+
+    package void setBodyLimit(size_t maxBytes)
+    {
+        _maxBodySize = maxBytes;
+        if (_bodyLoaded)
+        {
+            if (_rawBody.length > maxBytes)
+            {
+                _bodyRejected = true;
+                throw new HttpError(413, "Payload Too Large");
+            }
+            return;
+        }
+        if (_hasPendingBody && _declaredContentLength > maxBytes)
+        {
+            _bodyRejected = true;
+            _bodyLoaded = true;
+            _bodyLoadError = new HttpError(413, "Payload Too Large");
+            throw _bodyLoadError;
+        }
+    }
+
+    private void ensureBodyLoaded()
+    {
+        if (_bodyLoadError !is null)
+            throw _bodyLoadError;
+        if (_bodyLoaded)
+            return;
+        _bodyLoaded = true;
+        if (_bodyLoader is null)
+            return;
+        try
+        {
+            _rawBody = cast(string) _bodyLoader(_maxBodySize);
+        }
+        catch (Throwable error)
+        {
+            _bodyRejected = true;
+            _bodyLoadError = error;
+            throw error;
+        }
+    }
+
+    private void initFromTargetAndHeaders(string method, string rawTarget,
+                                          string httpVersion,
+                                          string[][string] headers, string ip)
     {
         this.method = method;
         this.httpVersion = httpVersion;
@@ -126,8 +212,6 @@ class Request
 
         if (auto xrw = "x-requested-with" in headers)
             xhr = (*xrw).length != 0 && icmp((*xrw)[0], "XMLHttpRequest") == 0;
-
-        this.rawBody = cast(string) rawBodyBytes;
     }
 
     /// Parsed JSON, URL-encoded, or text body. `JSONValue(null)` otherwise.
@@ -145,20 +229,21 @@ class Request
         return _body;
     }
 
-    private JSONValue parseBody() const
+    private JSONValue parseBody()
     {
-        if (rawBody.length == 0)
+        const raw = rawBody;
+        if (raw.length == 0)
             return JSONValue(null);
 
         const ct = contentType;
         try
         {
             if (ct == "application/json" || ct.endsWith("+json"))
-                return parseJSON(rawBody);
+                return parseJSON(raw);
             if (ct == "application/x-www-form-urlencoded")
-                return parseForm(rawBody);
+                return parseForm(raw);
             if (ct.startsWith("text/"))
-                return JSONValue(rawBody);
+                return JSONValue(raw);
             return JSONValue(null);
         }
         catch (JSONException e)
