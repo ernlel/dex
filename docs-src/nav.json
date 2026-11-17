@@ -1,0 +1,32 @@
+{
+    "sections": [
+        {
+            "title": "Getting Started",
+            "pages": [
+                { "slug": "starter/installing", "label": "Installing" },
+                { "slug": "starter/hello-world", "label": "Hello World" },
+                { "slug": "starter/basic-routing", "label": "Basic Routing" },
+                { "slug": "starter/static-files", "label": "Static Files" },
+                { "slug": "starter/faq", "label": "FAQ" }
+            ]
+        },
+        {
+            "title": "Guide",
+            "pages": [
+                { "slug": "guide/routing", "label": "Routing in Depth" },
+                { "slug": "guide/middleware", "label": "Middleware & CORS" },
+                { "slug": "guide/templates", "label": "Template Engine & Views" },
+                { "slug": "guide/error-handling", "label": "Error Handling" }
+            ]
+        },
+        {
+            "title": "API Reference",
+            "pages": [
+                { "slug": "api/app", "label": "App" },
+                { "slug": "api/request", "label": "Request (req)" },
+                { "slug": "api/response", "label": "Response (res)" },
+                { "slug": "api/router", "label": "Router" }
+            ]
+        }
+    ]
+}

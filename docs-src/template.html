@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#020617">
+    <title>{{PAGE_TITLE}} — dex</title>
+    <meta name="description" content="{{DESCRIPTION}}">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{PAGE_TITLE}} — dex">
+    <meta property="og:description" content="{{DESCRIPTION}}">
+    <meta property="og:image" content="{{ROOT}}assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{PAGE_TITLE}} — dex">
+    <meta name="twitter:description" content="{{DESCRIPTION}}">
+    <meta name="twitter:image" content="{{ROOT}}assets/og-image.png">
+    <link rel="icon" href="{{ROOT}}assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ROOT}}assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <script>
+        document.documentElement.classList.add("js");
+        window.setTimeout(function () {
+            if (!window.__dexPageReady) {
+                document.documentElement.classList.remove("js");
+            }
+        }, 1500);
+    </script>
+    <link rel="stylesheet" href="{{ROOT}}styles.css">
+    <link rel="stylesheet" href="{{ROOT}}docs.css">
+    <noscript>
+        <style>
+            .docs-search { display: none !important; }
+        </style>
+    </noscript>
+</head>
+<body data-docs-root="{{ROOT}}">
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header" data-header>
+        <div class="container nav-wrap">
+            <a class="brand" href="{{ROOT}}index.html" aria-label="dex home">
+                <span class="brand-mark" aria-hidden="true">d</span>
+                <span class="brand-name">dex</span>
+            </a>
+
+            <button class="nav-toggle" type="button" aria-expanded="false"
+                    aria-controls="primary-nav" aria-label="Open navigation"
+                    data-nav-toggle>
+                <svg class="icon icon-menu" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16"/>
+                </svg>
+                <svg class="icon icon-close" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+            </button>
+
+            <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
+                <a href="{{ROOT}}index.html#features">Features</a>
+                <a class="active" href="{{ROOT}}starter/installing.html" aria-current="page">Docs</a>
+                <a href="{{ROOT}}index.html#quickstart">Quickstart</a>
+                <a href="{{ROOT}}index.html#middleware">Middleware</a>
+                <a href="{{ROOT}}index.html#examples">Examples</a>
+                <a class="nav-github" data-github href="https://github.com"
+                   target="_blank" rel="noopener">
+                    <svg class="icon" viewBox="0 0 16 16" fill="currentColor"
+                         aria-hidden="true">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container docs-toolbar">
+        <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+            {{BREADCRUMB}}
+        </nav>
+
+        <div class="docs-search" role="search">
+            <label class="sr-only" for="docs-search-input">Search documentation</label>
+            <div class="docs-search-field">
+                <svg class="icon search-icon" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="m20 20-3.5-3.5"/>
+                </svg>
+                <input id="docs-search-input" type="search" placeholder="Search documentation"
+                       autocomplete="off" spellcheck="false"
+                       role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                       aria-expanded="false" aria-controls="docs-search-results"
+                       aria-describedby="docs-search-status">
+                <kbd class="docs-search-key" aria-hidden="true">/</kbd>
+            </div>
+            <div class="docs-search-results" id="docs-search-results"
+                 role="listbox" aria-label="Search results" hidden></div>
+            <p class="sr-only" id="docs-search-status" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+
+    <div class="container docs-wrap">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+            {{SIDEBAR}}
+        </aside>
+
+        <main class="docs-content" id="content" tabindex="-1">
+            <header class="docs-header">
+                <h1 class="docs-title">{{PAGE_TITLE}}</h1>
+                <p class="docs-lead">{{DESCRIPTION}}</p>
+            </header>
+
+            {{CONTENT}}
+
+            {{PAGER}}
+        </main>
+
+        {{TOC_ASIDE}}
+    </div>
+
+    <footer class="site-footer">
+        <div class="container footer-bottom">
+            <p>&copy; <span data-year>2026</span>
+                <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>.
+                MIT Licensed.</p>
+        </div>
+    </footer>
+
+    <script src="{{ROOT}}script.js"></script>
+    <script src="{{ROOT}}docs.js"></script>
+</body>
+</html>
