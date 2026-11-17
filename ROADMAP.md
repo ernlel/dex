@@ -110,6 +110,10 @@ Focus: **Reverse-proxy awareness, HTTP caching semantics, typed request binding,
   - Replace raw Markdown backticks in `docs/guide/middleware.html` headings (`compression()`, `rateLimit()`, `bodyLimit()`) with `<code>` tags and document all middleware `*Options` structs.
   - Complete API & landing page docs (`docs/api/request.html`, `docs/api/response.html`, `docs/api/router.html`, `docs/starter/faq.html`, `docs/index.html`) and deduplicate `[0.2.0]` vs `[0.3.0]`/`[0.4.0]` entries in `CHANGELOG.md`.
 
+- [ ] **Examples for v0.4.0–v0.5.0 Features**
+  - Update existing examples (`examples/api-server`, `examples/file-server`) and/or add dedicated examples demonstrating `compression()`, `rateLimit()`, `bodyLimit()`, graceful shutdown (`shutdownTimeout`), `app.trustProxy`, `ETag`/`304`/`res.download()`, `req.bind!T`, `router.param()`, and signed-cookie sessions.
+  - Add any new example apps to `.github/workflows/ci.yml` and `README.md`.
+
 ---
 
 ## 🌊 Target Milestone: v0.6.0 (Streaming I/O, WebSockets & Observability)
@@ -140,6 +144,10 @@ Focus: **Incremental streaming responses, native WebSockets, multipart file uplo
 
 - [ ] **Benchmarking Harness & CI Regression Tracking**
   - Reproducible local & CI benchmark suite measuring throughput, p99 latency, and heap allocations across core routing, JSON, static streaming, and middleware paths.
+
+- [ ] **Real-Time, Streaming & Upload Examples**
+  - Add runnable examples showcasing WebSockets (`app.ws`), chunked streaming / Server-Sent Events (`res.write()`), multipart file uploads, and `/health` + structured logging.
+  - Wire new examples into `.github/workflows/ci.yml` and document curl/browser usage in `README.md`.
 
 ---
 
