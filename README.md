@@ -53,24 +53,34 @@ void main()
 ## Features
 
 - Express-style routing: `get`, `post`, `put`, `patch`, `delete`, `head`,
-  `options`, `all`, plus `route(method, path, handler)` for custom methods.
+  `options`, `all`, `route(path)` fluent chaining, `router.param`, variadic
+  handler chains, plus `route(method, path, handler)` for custom methods.
 - `:param` segments, `*` wildcards, case-insensitive matching by default,
-  optional trailing slash, automatic `HEAD` fallback to `GET`.
+  optional trailing slash, automatic `HEAD` fallback to `GET`, and optional
+  `405 Method Not Allowed` (`Allow` header).
 - Middleware chains with `next()` and `next(error)`.
 - Error middleware with the usual `(err, req, res, next)` shape.
 - Mountable `Router`s with path stripping, `baseUrl`, and parameter merging.
-- JSON, URL-encoded, and text request body parsing.
+- Lazy JSON, URL-encoded, and text request body parsing, plus typed
+  reflection binding (`req.bind!T`, `req.bindQuery!T`) with `Nullable!T`,
+  default values, and `@optional` support.
 - Response helpers: `status`, `set`, `type`, `send`, `sendBytes`, `json`,
-  `redirect`, `sendStatus`, `sendFile`, cookies.
-- Static file middleware with traversal and symlink escape protection.
-- Reflection-based JSON serialization for structs, classes, arrays,
-  associative arrays, enums, and `Nullable`.
+  `render`, `redirect`, `sendStatus`, `sendFile` / `download`, `etag`,
+  content negotiation (`req.accepts` / `res.format`), and signed cookies.
+- Automatic `ETag` generation and `If-None-Match` / `If-Modified-Since`
+  `304 Not Modified` conditional request handling (`req.fresh` / `req.stale`).
+- Reverse proxy awareness (`app.trustProxy`) for `req.ip`, `req.ips`,
+  `req.protocol`, `req.secure`, and `req.hostname`.
+- Static file middleware with traversal/symlink protection and `206 Partial Content`
+  HTTP Range streaming.
+- Reflection-based JSON serialization and deserialization (`dex.jsonx`) for
+  structs, classes, arrays, associative arrays, enums, and `Nullable`.
 - HTTP/1.1 keep-alive, chunked request bodies, `Expect: 100-continue`,
   configurable and per-route request size limits (`bodyLimit`), graceful
   shutdown with POSIX signal hooks, and a capped thread-per-connection server.
-- Built-in middleware: `logger`, `serveStatic` (with chunked range streaming),
-  `cors`, `securityHeaders`, `compression` (gzip/deflate), `rateLimit`, and
-  `bodyLimit`.
+- Built-in middleware: `logger`, `serveStatic`, `cors`, `securityHeaders`,
+  `compression` (gzip/deflate), `rateLimit`, `bodyLimit`, and `session`
+  (HMAC-SHA256 signed cookies + `MemorySessionStore`).
 - Built-in Handlebars/Mustache template engine (`res.render`) with variables,
   conditionals (`#if`, `#unless`), loops (`#each`), partials (`{{> partial}}`),
   and automatic XSS escaping.
@@ -91,7 +101,7 @@ Or add it to your `dub.json` dependencies manually:
 ```json
 {
     "dependencies": {
-        "dex": "~>0.4.0"
+        "dex": "~>0.5.0"
     }
 }
 ```
@@ -179,13 +189,13 @@ If you prefer not to use `git clone`, you can download minimal standalone releas
 
 ```sh
 # Download and extract the minimal source package:
-curl -fsSL https://github.com/ernlel/dex/releases/download/v0.4.0/dex-0.4.0.tar.gz | tar -xz
+curl -fsSL https://github.com/ernlel/dex/releases/download/v0.5.0/dex-0.5.0.tar.gz | tar -xz
 
 # Compile your app against the unpacked sources:
-dmd -i -Idex-0.4.0/source app.d -of=myapp
+dmd -i -Idex-0.5.0/source app.d -of=myapp
 ```
 
-Precompiled Linux x86_64 binaries (`dex-0.4.0-linux-x86_64.tar.gz`) containing `libdex.a` are also available on each release.
+Precompiled Linux x86_64 binaries (`dex-0.5.0-linux-x86_64.tar.gz`) containing `libdex.a` are also available on each release.
 
 Requires a recent D compiler (tested with DMD 2.113 / LDC 1.40).
 
@@ -321,16 +331,20 @@ Useful members:
 | `params` | Route parameters |
 | `query`, `queryAll` | Last query value per key, all values per key |
 | `headers` | Headers keyed by lowercase name |
-| `cookies` | Parsed cookies |
-| `body`, `rawBody` | Parsed body (`JSONValue`) and raw body |
-| `ip`, `protocol`, `secure`, `xhr` | Connection information |
+| `cookies` / `signedCookies` | Parsed cookies and HMAC-verified signed cookies |
+| `body`, `rawBody`, `maxBodySize` | Parsed body (`JSONValue`), deferred raw body, and active limit |
+| `ip`, `ips`, `protocol`, `secure`, `xhr` | Connection & trusted-proxy information |
+| `session` | Active `Session` when `session()` middleware is mounted |
 | `get(name)` / `getValues(name)` | Header access |
 | `param(name)` | Route parameter |
 | `queryParam(name)` / `queryParams(name)` | Query access |
-| `cookie(name)` | Cookie access |
-| `hostname()` | Host header without port |
+| `cookie(name)` / `signedCookie(name)` | Cookie and signed-cookie access |
+| `hostname()` | `Host` (or trusted `X-Forwarded-Host`) without port |
 | `contentType()` / `isType(type)` | Request content type check |
-| `bodyValue!T(name)` | Typed body field |
+| `accepts(types...)` | `Accept` content negotiation |
+| `fresh` / `stale` | Conditional caching freshness (`If-None-Match` / `If-Modified-Since`) |
+| `bodyValue!T(name)` | Typed single body field |
+| `bind!T()` / `bindQuery!T()` | Typed struct deserialization & validation for body / query |
 
 `Request.is` cannot be used because `is` is a D keyword; use `isType`.
 
@@ -343,7 +357,10 @@ Useful members:
 - Other types leave `req.body` as `JSONValue(null)`; `req.rawBody` is always
   available.
 
-Invalid JSON produces a `400` response before handlers run.
+Bodies are read and parsed lazily on first access (`req.rawBody`, `req.body`,
+or `req.bind!T`), so invalid JSON produces a `400` `HttpError` when read (routes
+that never inspect the body are unaffected) and per-route `bodyLimit()` rules
+apply before reading oversized payloads.
 
 ## Response
 
@@ -364,11 +381,13 @@ res.status(201)
 | `send(text)` | Send text; defaults to `text/html` |
 | `sendBytes(bytes)` | Send binary data |
 | `json(value)` / `sendJson` | Serialize and send JSON |
+| `render(view, [locals])` | Render a template via `dex.view` or custom engine |
 | `end([text])` | End the response without setting a content type |
 | `sendStatus(code)` | Send the status reason phrase |
 | `redirect([code], location)` | Redirect, default 302 |
-| `sendFile(path)` | Send a file from disk |
-| `cookie(name, value, options)` | Set a cookie |
+| `sendFile(path)` / `download(path, [name])` | Stream a file (with `ETag`/`304`/`206`) or download attachment |
+| `etag(tag)` / `format(handlers)` | Set `ETag` or negotiate response by `Accept` header |
+| `cookie(name, value, options)` / `signedCookie` | Set a plain or HMAC-SHA256 signed cookie |
 | `clearCookie(name, options)` | Expire a cookie |
 | `closeConnection()` | Close the TCP connection after the response |
 | `onFinish(callback)` | Register a callback run when response ends |
@@ -419,8 +438,10 @@ app.use("/assets", serveStatic("./assets"));
 ```
 
 `StaticOptions` controls the index file, cache control header, and dotfile
-serving. Missing files fall through to later handlers. Traversal attempts and
-symlinks escaping the root are ignored.
+serving. Files stream in 64 KiB chunks with `ETag`, `Last-Modified`,
+`304 Not Modified`, and `206 Partial Content` byte-range support. Missing files
+fall through to later handlers; traversal attempts and symlinks escaping the
+root are ignored.
 
 ## Configuration
 
@@ -436,6 +457,10 @@ connection threads.
 | `maxBodySize` | 10 MiB | Maximum request body (overridable per route via `bodyLimit`) |
 | `maxHeaderSize` | 64 KiB | Maximum header block |
 | `maxConnections` | 1024 | Concurrent connections (0 = unlimited) |
+| `trustProxy` | disabled | Proxy trust policy (`bool`, hop count, or IP/CIDR list) |
+| `etag` | true | Automatic `ETag` generation & `304 Not Modified` handling |
+| `handleMethodNotAllowed` | false | Return `405` with `Allow` header when path exists for other methods |
+| `cookieSecret` / `cookieSecrets` | null | HMAC-SHA256 secret(s) for signed cookies (supports rotation) |
 | `showStackTraces` | false | Include exception text in 500 responses |
 | `logErrors` | true | Log unhandled 5xx errors to stderr |
 | `caseSensitive` | false | Case-sensitive route matching |
@@ -443,21 +468,23 @@ connection threads.
 ## Server
 
 ```d
-app.listen(3000);                    // blocks
+app.listen(3000);                    // blocks; handles SIGINT/SIGTERM gracefully
 app.start(0, "127.0.0.1");           // non-blocking; read app.port
 app.wait();
-app.close();
+app.close();                         // drains up to app.shutdownTimeout
+app.close(dur!"seconds"(2));         // custom drain timeout
 ```
 
 The built-in server supports HTTP/1.1 keep-alive, chunked request bodies,
-`Expect: 100-continue`, and one thread per connection with a configurable cap.
-TLS is not implemented; terminate TLS at a reverse proxy.
+`Expect: 100-continue`, graceful shutdown draining, and one thread per
+connection with a configurable cap. TLS is not implemented; terminate TLS at a
+reverse proxy and enable `app.trustProxy`.
 
 ## Errors
 
 - Handlers may throw `HttpError(status, message)`.
 - Unhandled exceptions become `500 Internal Server Error`.
-- An unmatched request becomes `404 Cannot METHOD /path`.
+- An unmatched request becomes `404 Cannot METHOD /path` (or `405 Method Not Allowed` when `app.handleMethodNotAllowed = true`).
 - Error middleware is invoked in registration order after the failing layer.
 
 ## Limitations
@@ -468,15 +495,17 @@ TLS is not implemented; terminate TLS at a reverse proxy.
 - HTTP/1.x (1.0 and 1.1); no HTTP/2, TLS, WebSockets, or multipart/form-data parsing.
 - Route patterns support literals, `:name` parameters, and trailing `*`
   wildcards; no regular expressions.
-- The listener binds IPv4 host addresses (`0.0.0.0`, `127.0.0.1`, hostnames).
+- The listener binds IPv4 and IPv6 addresses via `getAddress(host, port)`
+  (`0.0.0.0`, `127.0.0.1`, `::`, `::1`, hostnames).
 
 ## Examples
 
 - `examples/hello` — minimal hello world with basic routes, parameters, JSON, and logger.
 - `examples/todos` — thread-safe in-memory JSON CRUD API with sub-routers and mutex locking.
-- `examples/api-server` — production-ready REST microservice featuring Bearer token auth, modular sub-routers, query filtering, request validation, CORS, security headers, and structured JSON error responses.
-- `examples/file-server` — static asset and chunked media streaming server with custom cache headers, file metadata API, and HTTP Range request (`206 Partial Content`) support.
+- `examples/api-server` — REST microservice featuring `trustProxy`, `rateLimit`, `compression`, `bodyLimit`, `router.param`, `req.bind!T` / `req.bindQuery!T`, `res.format`, Bearer auth, CORS, security headers, `405` handling, and graceful shutdown.
+- `examples/file-server` — static asset and chunked media streaming server with `ETag`/`304`, `res.download`, custom cache headers, compression, and HTTP Range (`206 Partial Content`) support.
 - `examples/views` — server-side HTML rendering using dex's built-in Handlebars/Mustache template engine, partials, and typed D structs.
+- `examples/sessions` — HMAC-SHA256 signed cookies with key rotation and `session()` middleware (`MemorySessionStore`, `regenerate()`, `destroy()`).
 
 ```sh
 cd examples/hello && dub run
@@ -484,6 +513,7 @@ cd examples/todos && dub run
 cd examples/api-server && dub run
 cd examples/file-server && dub run
 cd examples/views && dub run
+cd examples/sessions && dub run
 ```
 
 ### Testing `examples/api-server`:
@@ -539,26 +569,64 @@ curl -i http://localhost:3000/about
 curl -i http://localhost:3000/projects
 ```
 
-## Landing page
+## Documentation site
 
-The static site in `docs/` is ready for GitHub Pages. It has no build step,
-no package manager, and no external JavaScript.
+The documentation is authored as Markdown in `docs-src/`. The build script
+renders it into the static pages in `docs/` and generates
+`docs/search-index.json` for client-side search.
 
-To publish it:
+```sh
+python3 -m pip install -r requirements-docs.txt
+make docs
+```
+
+Preview locally:
+
+```sh
+make docs-serve
+# open http://localhost:8080
+```
+
+The generated HTML is committed, so the site can also be served directly from
+`docs/`. The GitHub Pages workflow rebuilds the Markdown sources before
+uploading the artifact.
+
+### Adding a page
+
+1. Add `docs-src/<section>/<slug>.md` with front matter:
+
+   ```md
+   ---
+   title: Page title
+   description: One-sentence summary used in metadata and search results.
+   ---
+   ```
+
+2. Add the slug to `docs-src/nav.json` in the desired section and order.
+3. Run `make docs`.
+
+Fenced code blocks are rendered with Pygments. Add a title for the code-frame
+bar:
+
+````md
+```d title="source/app.d"
+import dex;
+```
+````
+
+Search indexes page titles, section headings, and body text. The docs header
+has a search field; press `/` to focus it. Use <kbd>↑</kbd>/<kbd>↓</kbd> and
+<kbd>Enter</kbd> to navigate results.
+
+### Publish
 
 1. Push the repository to GitHub.
 2. Open **Settings → Pages**.
 3. Choose **Deploy from a branch**.
 4. Select the `main` branch and the `/docs` folder.
 
-`docs/.nojekyll` is included, so GitHub Pages serves the files as-is.
-
-Preview locally:
-
-```sh
-python3 -m http.server 8080 --directory docs
-# open http://localhost:8080
-```
+The included Pages workflow runs the Markdown build automatically. It deploys
+the contents of `docs/` after rendering `docs-src/`.
 
 On a GitHub Pages project site, repository links are detected automatically.
 If the site uses a custom domain, set `CONFIGURED_REPO_URL` in

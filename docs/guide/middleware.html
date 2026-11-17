@@ -5,17 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#020617">
-    <title>Using Middleware — Guide — dex</title>
-    <meta name="description" content="Guide to writing and using middleware in dex, including built-in logger, static files, CORS, and security headers.">
+    <title>Writing &amp; Using Middleware — dex</title>
+    <meta name="description" content="Middleware functions have access to the request object, response object, and the next middleware function in the application’s request-response cycle.">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Writing &amp; Using Middleware — dex">
+    <meta property="og:description" content="Middleware functions have access to the request object, response object, and the next middleware function in the application’s request-response cycle.">
+    <meta property="og:image" content="../assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Writing &amp; Using Middleware — dex">
+    <meta name="twitter:description" content="Middleware functions have access to the request object, response object, and the next middleware function in the application’s request-response cycle.">
+    <meta name="twitter:image" content="../assets/og-image.png">
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <script>
+        document.documentElement.classList.add("js");
+        window.setTimeout(function () {
+            if (!window.__dexPageReady) {
+                document.documentElement.classList.remove("js");
+            }
+        }, 1500);
+    </script>
     <link rel="stylesheet" href="../styles.css">
     <link rel="stylesheet" href="../docs.css">
+    <noscript>
+        <style>
+            .docs-search { display: none !important; }
+        </style>
+    </noscript>
 </head>
-<body>
+<body data-docs-root="../">
     <a class="skip-link" href="#content">Skip to content</a>
 
     <header class="site-header" data-header>
@@ -42,7 +65,7 @@
 
             <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
                 <a href="../index.html#features">Features</a>
-                <a class="active" href="../starter/installing.html">Docs</a>
+                <a class="active" href="../starter/installing.html" aria-current="page">Docs</a>
                 <a href="../index.html#quickstart">Quickstart</a>
                 <a href="../index.html#middleware">Middleware</a>
                 <a href="../index.html#examples">Examples</a>
@@ -58,217 +81,275 @@
         </div>
     </header>
 
+    <div class="container docs-toolbar">
+        <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">Home</a><span class="separator">/</span><span>Guide</span><span class="separator">/</span><span aria-current="page">Writing &amp; Using Middleware</span>
+        </nav>
+
+        <div class="docs-search" role="search">
+            <label class="sr-only" for="docs-search-input">Search documentation</label>
+            <div class="docs-search-field">
+                <svg class="icon search-icon" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="m20 20-3.5-3.5"/>
+                </svg>
+                <input id="docs-search-input" type="search" placeholder="Search documentation"
+                       autocomplete="off" spellcheck="false"
+                       role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                       aria-expanded="false" aria-controls="docs-search-results"
+                       aria-describedby="docs-search-status">
+                <kbd class="docs-search-key" aria-hidden="true">/</kbd>
+            </div>
+            <div class="docs-search-results" id="docs-search-results"
+                 role="listbox" aria-label="Search results" hidden></div>
+            <p class="sr-only" id="docs-search-status" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+
     <div class="container docs-wrap">
-        <aside class="docs-sidebar" aria-label="Documentation Navigation">
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Getting Started</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li>
-                    <li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li>
-                    <li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li>
-                    <li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li>
-                    <li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Guide</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="routing.html">Routing in Depth</a></li>
-                    <li><a class="docs-nav-link active" href="middleware.html">Middleware &amp; CORS</a></li>
-                    <li><a class="docs-nav-link" href="templates.html">Template Engine &amp; Views</a></li>
-                    <li><a class="docs-nav-link" href="error-handling.html">Error Handling</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">API Reference</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../api/app.html">App</a></li>
-                    <li><a class="docs-nav-link" href="../api/request.html">Request (req)</a></li>
-                    <li><a class="docs-nav-link" href="../api/response.html">Response (res)</a></li>
-                    <li><a class="docs-nav-link" href="../api/router.html">Router</a></li>
-                </ul>
-            </div>
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+            <div class="docs-nav-group"><div class="docs-nav-heading">Getting Started</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li><li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li><li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li><li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li><li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">Guide</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="routing.html">Routing in Depth</a></li><li><a class="docs-nav-link active" href="middleware.html" aria-current="page">Middleware &amp; CORS</a></li><li><a class="docs-nav-link" href="templates.html">Template Engine &amp; Views</a></li><li><a class="docs-nav-link" href="error-handling.html">Error Handling</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">API Reference</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../api/app.html">App</a></li><li><a class="docs-nav-link" href="../api/request.html">Request (req)</a></li><li><a class="docs-nav-link" href="../api/response.html">Response (res)</a></li><li><a class="docs-nav-link" href="../api/router.html">Router</a></li></ul></div>
         </aside>
 
-        <main class="docs-content" id="content">
-            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
-                <a href="../index.html">Home</a>
-                <span class="separator">/</span>
-                <span>Guide</span>
-                <span class="separator">/</span>
-                <span aria-current="page">Middleware &amp; CORS</span>
-            </nav>
-
+        <main class="docs-content" id="content" tabindex="-1">
             <header class="docs-header">
                 <h1 class="docs-title">Writing &amp; Using Middleware</h1>
-                <p class="docs-lead">
-                    Middleware functions have access to the request object, response object, and the next middleware function in the application’s request-response cycle.
-                </p>
+                <p class="docs-lead">Middleware functions have access to the request object, response object, and the next middleware function in the application’s request-response cycle.</p>
             </header>
 
-            <h2>Anatomy of a Middleware Function</h2>
-            <p>
-                A middleware function is a delegate taking three parameters:
-            </p>
+            <h2 id="anatomy-of-a-middleware-function">Anatomy of a Middleware Function</h2>
+<p>A middleware function is a delegate taking three parameters:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">Text</span>
+    <button class="copy-button" type="button" data-copy="code-1" aria-label="Copy Text">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-1" tabindex="0" aria-label="Text code example"><code class="language-text">(Request req, Response res, Next next) {
+    // Do work...
+    next(); // Pass execution to the next handler
+}
+</code></pre>
+</div>
+<p>Middleware functions can perform the following tasks:</p>
+<ul>
+<li>Execute any code.</li>
+<li>Make changes to the request and the response objects.</li>
+<li>End the request-response cycle by sending data (e.g. <code>res.status(403).send("Forbidden")</code>).</li>
+<li>Call the next middleware function in the stack using <code>next()</code>.</li>
+</ul>
+<h2 id="custom-timing-middleware-example">Custom Timing Middleware Example</h2>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">source/app.d</span>
+    <button class="copy-button" type="button" data-copy="code-2" aria-label="Copy source/app.d">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-2" tabindex="0" aria-label="source/app.d code example"><code class="language-d"><span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">((</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">MonoTime</span><span class="p">.</span><span class="n">currTime</span><span class="p">;</span>
 
-            <div class="code-frame">
-                <pre class="code"><code>(<span class="tok-type">Request</span> req, <span class="tok-type">Response</span> res, <span class="tok-type">Next</span> next) {
-    <span class="tok-comment">// Do work...</span>
-    next(); <span class="tok-comment">// Pass execution to the next handler</span>
-}</code></pre>
-            </div>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">onFinish</span><span class="p">((</span><span class="n">finishedRes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">ms</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">MonoTime</span><span class="p">.</span><span class="n">currTime</span><span class="w"> </span><span class="p">-</span><span class="w"> </span><span class="n">start</span><span class="p">).</span><span class="n">total</span><span class="p">!</span><span class="s">"msecs"</span><span class="p">;</span>
+<span class="w">        </span><span class="n">writefln</span><span class="p">(</span><span class="s">"[%s] %s took %d ms"</span><span class="p">,</span><span class="w"> </span><span class="n">req</span><span class="p">.</span><span class="n">method</span><span class="p">,</span><span class="w"> </span><span class="n">req</span><span class="p">.</span><span class="n">url</span><span class="p">,</span><span class="w"> </span><span class="n">ms</span><span class="p">);</span>
+<span class="w">    </span><span class="p">});</span>
 
-            <p>Middleware functions can perform the following tasks:</p>
-            <ul>
-                <li>Execute any code.</li>
-                <li>Make changes to the request and the response objects.</li>
-                <li>End the request-response cycle by sending data (e.g. <code>res.status(403).send("Forbidden")</code>).</li>
-                <li>Call the next middleware function in the stack using <code>next()</code>.</li>
-            </ul>
+<span class="w">    </span><span class="n">next</span><span class="p">();</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h2 id="built-in-middleware">Built-in Middleware</h2>
+<p><code>dex</code> includes essential, production-ready middleware right out of the box:</p>
+<h3 id="1-logger-logger">1. Logger (<code>logger()</code>)</h3>
+<p>Logs incoming requests, status codes, and latency to <code>stderr</code> (or a custom log sink delegate):</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-3" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-3" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">logger</span><span class="p">());</span>
+</code></pre>
+</div>
+<h3 id="2-static-files-servestatic">2. Static Files (<code>serveStatic()</code>)</h3>
+<p>Streams static assets from disk in 64 KiB chunks with range support:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-4" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-4" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">serveStatic</span><span class="p">(</span><span class="s">"./public"</span><span class="p">));</span>
+</code></pre>
+</div>
+<h3 id="3-cors-cors">3. CORS (<code>cors()</code>)</h3>
+<p>Handles Cross-Origin Resource Sharing headers and preflight <code>OPTIONS</code> requests:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-5" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-5" tabindex="0" aria-label="D code example"><code class="language-d"><span class="c1">// Allow any origin</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">cors</span><span class="p">());</span>
 
-            <h2>Custom Timing Middleware Example</h2>
+<span class="c1">// Or with custom configuration</span>
+<span class="n">CorsOptions</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">origin</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"https://frontend.com"</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">credentials</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">methods</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"GET, POST, PUT, DELETE"</span><span class="p">;</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">cors</span><span class="p">(</span><span class="n">options</span><span class="p">));</span>
+</code></pre>
+</div>
+<h3 id="4-security-headers-securityheaders">4. Security Headers (<code>securityHeaders()</code>)</h3>
+<p>Sets standard defensive headers (equivalent to Express Helmet):</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-6" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-6" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">securityHeaders</span><span class="p">());</span>
+</code></pre>
+</div>
+<h3 id="5-compression-compression">5. Compression (<code>compression()</code>)</h3>
+<p>Compresses response bodies using Gzip or Deflate based on client <code>Accept-Encoding</code> headers and content type (HTML, JSON, JS, CSS, SVG, text). Configure via <code>CompressionOptions</code> (<code>threshold</code>, <code>level</code>, <code>filter</code>):</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-7" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-7" tabindex="0" aria-label="D code example"><code class="language-d"><span class="k">import</span><span class="w"> </span><span class="n">dex</span><span class="p">;</span>
 
-            <div class="code-frame">
-                <div class="code-bar">
-                    <span class="code-title">source/app.d</span>
-                    <button class="copy-button" type="button" aria-label="Copy code">
-                        <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                        <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                    </button>
-                </div>
-                <pre class="code"><code>app.<span class="tok-fn">use</span>((req, res, next) {
-    <span class="tok-kw">const</span> start = MonoTime.currTime;
-    
-    res.<span class="tok-fn">onFinish</span>((finishedRes) {
-        <span class="tok-kw">const</span> ms = (MonoTime.currTime - start).total!<span class="tok-str">"msecs"</span>;
-        writefln(<span class="tok-str">"[%s] %s took %d ms"</span>, req.method, req.url, ms);
-    });
+<span class="c1">// Default compression (threshold 1024 bytes)</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">compression</span><span class="p">());</span>
 
-    next();
-});</code></pre>
-            </div>
+<span class="c1">// Custom threshold or compression level (1-9)</span>
+<span class="n">CompressionOptions</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">threshold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">512</span><span class="p">;</span><span class="w"> </span><span class="c1">// Compress payloads &gt;= 512 bytes</span>
+<span class="n">options</span><span class="p">.</span><span class="n">level</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">compression</span><span class="p">(</span><span class="n">options</span><span class="p">));</span>
+</code></pre>
+</div>
+<h3 id="6-rate-limiting-ratelimit">6. Rate Limiting (<code>rateLimit()</code>)</h3>
+<p>Restricts incoming request volume per client key within a configured time window to protect APIs against abuse and DDoS. Configure via <code>RateLimitOptions</code> (<code>window</code>, <code>max</code>, <code>statusCode</code>, <code>message</code>, <code>standardHeaders</code>, <code>legacyHeaders</code>, <code>keyGenerator</code>, <code>handler</code>, <code>skip</code>):</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-8" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-8" tabindex="0" aria-label="D code example"><code class="language-d"><span class="k">import</span><span class="w"> </span><span class="n">dex</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="n">core</span><span class="p">.</span><span class="n">time</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">dur</span><span class="p">;</span>
 
-            <h2>Built-in Middleware</h2>
-            <p><code>dex</code> includes essential, production-ready middleware right out of the box:</p>
+<span class="c1">// Default rate limiter (60 requests per 1 minute per IP)</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">rateLimit</span><span class="p">());</span>
 
-            <h3>1. Logger (`logger()`)</h3>
-            <p>
-                Logs incoming requests, status codes, and latency to <code>stderr</code> (or a custom log sink delegate):
-            </p>
-            <div class="code-frame">
-                <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-fn">logger</span>());</code></pre>
-            </div>
+<span class="c1">// Custom rate limit rules on API routes</span>
+<span class="n">RateLimitOptions</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">max</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">window</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mf">15.</span><span class="n">dur</span><span class="p">!</span><span class="s">"minutes"</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">message</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"API rate limit exceeded. Please wait before retrying."</span><span class="p">;</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">"/api"</span><span class="p">,</span><span class="w"> </span><span class="n">rateLimit</span><span class="p">(</span><span class="n">options</span><span class="p">));</span>
+</code></pre>
+</div>
+<h3 id="7-per-route-body-size-limits-bodylimit">7. Per-Route Body Size Limits (<code>bodyLimit()</code>)</h3>
+<p>Overrides <code>app.maxBodySize</code> for specific routes or sub-routers, allowing tight caps on JSON endpoints while permitting larger uploads on dedicated routes:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-9" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-9" tabindex="0" aria-label="D code example"><code class="language-d"><span class="k">import</span><span class="w"> </span><span class="n">dex</span><span class="p">;</span>
 
-            <h3>2. Static Files (`serveStatic()`)</h3>
-            <p>
-                Streams static assets from disk in 64 KiB chunks with range support:
-            </p>
-            <div class="code-frame">
-                <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-fn">serveStatic</span>(<span class="tok-str">"./public"</span>));</code></pre>
-            </div>
+<span class="c1">// Tight global default (64 KiB)</span>
+<span class="n">app</span><span class="p">.</span><span class="n">maxBodySize</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">64</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span>
 
-            <h3>3. CORS (`cors()`)</h3>
-            <p>
-                Handles Cross-Origin Resource Sharing headers and preflight <code>OPTIONS</code> requests:
-            </p>
-            <div class="code-frame">
-                <pre class="code"><code><span class="tok-comment">// Allow any origin</span>
-app.<span class="tok-fn">use</span>(<span class="tok-fn">cors</span>());
+<span class="c1">// Allow up to 50 MiB on a specific upload route</span>
+<span class="n">app</span><span class="p">.</span><span class="n">post</span><span class="p">(</span><span class="s">"/upload"</span><span class="p">,</span><span class="w"> </span><span class="n">bodyLimit</span><span class="p">(</span><span class="mi">50</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s">"Uploaded "</span><span class="w"> </span><span class="p">~</span><span class="w"> </span><span class="n">req</span><span class="p">.</span><span class="n">rawBody</span><span class="p">.</span><span class="n">length</span><span class="p">.</span><span class="n">to</span><span class="p">!</span><span class="nb">string</span><span class="w"> </span><span class="p">~</span><span class="w"> </span><span class="s">" bytes"</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h3 id="8-sessions-signed-cookies-session">8. Sessions &amp; Signed Cookies (<code>session()</code>)</h3>
+<p>Manages server-side sessions backed by HMAC-SHA256 signed cookies and a pluggable <code>SessionStore</code> (defaulting to thread-safe <code>MemorySessionStore</code>). Configure via <code>SessionOptions</code> (<code>secret</code>, <code>secrets</code>, <code>cookieName</code>, <code>ttl</code>, <code>cookie</code>, <code>store</code>, <code>saveUninitialized</code>, <code>rolling</code>, <code>resave</code>):</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-10" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-10" tabindex="0" aria-label="D code example"><code class="language-d"><span class="k">import</span><span class="w"> </span><span class="n">dex</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="n">core</span><span class="p">.</span><span class="n">time</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">dur</span><span class="p">;</span>
 
-<span class="tok-comment">// Or with custom configuration</span>
-<span class="tok-type">CorsOptions</span> options;
-options.origin = <span class="tok-str">"https://frontend.com"</span>;
-options.credentials = <span class="tok-kw">true</span>;
-options.methods = <span class="tok-str">"GET, POST, PUT, DELETE"</span>;
-app.<span class="tok-fn">use</span>(<span class="tok-fn">cors</span>(options));</code></pre>
-            </div>
+<span class="n">app</span><span class="p">.</span><span class="n">cookieSecrets</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s">"primary-secret"</span><span class="p">,</span><span class="w"> </span><span class="s">"previous-secret"</span><span class="p">];</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">session</span><span class="p">(</span><span class="n">SessionOptions</span><span class="p">(</span><span class="n">ttl</span><span class="p">:</span><span class="w"> </span><span class="mf">24.</span><span class="n">dur</span><span class="p">!</span><span class="s">"hours"</span><span class="p">)));</span>
 
-            <h3>4. Security Headers (`securityHeaders()`)</h3>
-            <p>
-                Sets standard defensive headers (equivalent to Express Helmet):
-            </p>
-            <div class="code-frame">
-                <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-fn">securityHeaders</span>());</code></pre>
-            </div>
+<span class="n">app</span><span class="p">.</span><span class="n">post</span><span class="p">(</span><span class="s">"/login"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">req</span><span class="p">.</span><span class="n">session</span><span class="p">.</span><span class="n">regenerate</span><span class="p">();</span>
+<span class="w">    </span><span class="n">req</span><span class="p">.</span><span class="n">session</span><span class="p">[</span><span class="s">"user"</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"alice"</span><span class="p">;</span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s">"logged in"</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre>
+</div>
 
-            <h3>5. Compression (`compression()`)</h3>
-            <p>
-                Compresses response bodies using Gzip or Deflate based on client <code>Accept-Encoding</code> headers and content type (HTML, JSON, JS, CSS, SVG, text):
-            </p>
-            <div class="code-frame">
-                <div class="code-header"><span class="code-lang">d</span></div>
-                <pre class="code"><code><span class="tok-kw">import</span> dex;
-
-<span class="tok-comment">// Default compression (threshold 1024 bytes)</span>
-app.<span class="tok-fn">use</span>(<span class="tok-fn">compression</span>());
-
-<span class="tok-comment">// Custom threshold or compression level (1-9)</span>
-<span class="tok-type">CompressionOptions</span> options;
-options.threshold = 512; <span class="tok-comment">// Compress payloads &gt;= 512 bytes</span>
-options.level = 6;
-app.<span class="tok-fn">use</span>(<span class="tok-fn">compression</span>(options));</code></pre>
-            </div>
-
-            <h3>6. Rate Limiting (`rateLimit()`)</h3>
-            <p>
-                Restricts incoming request volume per client key within a configured time window to protect APIs against abuse and DDoS:
-            </p>
-            <div class="code-frame">
-                <div class="code-header"><span class="code-lang">d</span></div>
-                <pre class="code"><code><span class="tok-kw">import</span> dex;
-<span class="tok-kw">import</span> core.time : dur;
-
-<span class="tok-comment">// Default rate limiter (60 requests per 1 minute per IP)</span>
-app.<span class="tok-fn">use</span>(<span class="tok-fn">rateLimit</span>());
-
-<span class="tok-comment">// Custom rate limit rules on API routes</span>
-<span class="tok-type">RateLimitOptions</span> options;
-options.max = 100;
-options.window = 15.<span class="tok-fn">dur</span>!<span class="tok-str">"minutes"</span>;
-options.message = <span class="tok-str">"API rate limit exceeded. Please wait before retrying."</span>;
-app.<span class="tok-fn">use</span>(<span class="tok-str">"/api"</span>, <span class="tok-fn">rateLimit</span>(options));</code></pre>
-            </div>
-
-            <h3>7. Per-Route Body Size Limits (`bodyLimit()`)</h3>
-            <p>
-                Overrides <code>app.maxBodySize</code> for specific routes or sub-routers, allowing tight caps on JSON endpoints while permitting larger uploads on dedicated routes:
-            </p>
-            <div class="code-frame">
-                <div class="code-header"><span class="code-lang">d</span></div>
-                <pre class="code"><code><span class="tok-kw">import</span> dex;
-
-<span class="tok-comment">// Tight global default (64 KiB)</span>
-app.maxBodySize = 64 * 1024;
-
-<span class="tok-comment">// Allow up to 50 MiB on a specific upload route</span>
-app.<span class="tok-fn">post</span>(<span class="tok-str">"/upload"</span>, <span class="tok-fn">bodyLimit</span>(50 * 1024 * 1024), (req, res) {
-    res.<span class="tok-fn">send</span>(<span class="tok-str">"Uploaded "</span> ~ req.rawBody.length.<span class="tok-fn">to</span>!<span class="tok-type">string</span> ~ <span class="tok-str">" bytes"</span>);
-});</code></pre>
-            </div>
-
-            <!-- Pager -->
-            <nav class="docs-pager" aria-label="Docs pagination">
-                <a class="pager-btn pager-prev" href="routing.html">
-                    <span class="pager-label">&larr; Previous</span>
-                    <span class="pager-title">Routing in Depth</span>
-                </a>
-                <a class="pager-btn pager-next" href="templates.html">
-                    <span class="pager-label">Next &rarr;</span>
-                    <span class="pager-title">Template Engine &amp; Views</span>
-                </a>
-            </nav>
+            <nav class="docs-pager" aria-label="Docs pagination"><a class="pager-btn pager-prev" href="routing.html"><span class="pager-label">&larr; Previous</span><span class="pager-title">Routing in Depth</span></a><a class="pager-btn pager-next" href="templates.html"><span class="pager-label">Next &rarr;</span><span class="pager-title">Template Engine &amp; Views</span></a></nav>
         </main>
+
+        <aside class="docs-toc" aria-label="On this page"><p class="docs-toc-heading">On this page</p><div class="docs-toc-list"><div class="toc">
+<ul>
+<li><a href="#anatomy-of-a-middleware-function">Anatomy of a Middleware Function</a></li>
+<li><a href="#custom-timing-middleware-example">Custom Timing Middleware Example</a></li>
+<li><a href="#built-in-middleware">Built-in Middleware</a><ul>
+<li><a href="#1-logger-logger">1. Logger (logger())</a></li>
+<li><a href="#2-static-files-servestatic">2. Static Files (serveStatic())</a></li>
+<li><a href="#3-cors-cors">3. CORS (cors())</a></li>
+<li><a href="#4-security-headers-securityheaders">4. Security Headers (securityHeaders())</a></li>
+<li><a href="#5-compression-compression">5. Compression (compression())</a></li>
+<li><a href="#6-rate-limiting-ratelimit">6. Rate Limiting (rateLimit())</a></li>
+<li><a href="#7-per-route-body-size-limits-bodylimit">7. Per-Route Body Size Limits (bodyLimit())</a></li>
+<li><a href="#8-sessions-signed-cookies-session">8. Sessions &amp; Signed Cookies (session())</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div></aside>
     </div>
 
     <footer class="site-footer">
         <div class="container footer-bottom">
-            <p>&copy; <span data-year>2026</span> <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>. MIT Licensed.</p>
+            <p>&copy; <span data-year>2026</span>
+                <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>.
+                MIT Licensed.</p>
         </div>
     </footer>
 
     <script src="../script.js"></script>
+    <script src="../docs.js"></script>
 </body>
 </html>
-

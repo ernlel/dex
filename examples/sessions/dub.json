@@ -1,0 +1,10 @@
+{
+    "name": "sessions",
+    "description": "Signed cookies and server-side session middleware example",
+    "targetType": "executable",
+    "dependencies": {
+        "dex": {
+            "path": "../.."
+        }
+    }
+}

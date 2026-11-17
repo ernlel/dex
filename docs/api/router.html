@@ -5,17 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#020617">
-    <title>Router — API Reference — dex</title>
-    <meta name="description" content="API reference for the Router class in dex.">
+    <title>Router — dex</title>
+    <meta name="description" content="A Router instance is a complete middleware and routing system; for this reason, it is often referred to as a &quot;mini-app&quot;.">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Router — dex">
+    <meta property="og:description" content="A Router instance is a complete middleware and routing system; for this reason, it is often referred to as a &quot;mini-app&quot;.">
+    <meta property="og:image" content="../assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Router — dex">
+    <meta name="twitter:description" content="A Router instance is a complete middleware and routing system; for this reason, it is often referred to as a &quot;mini-app&quot;.">
+    <meta name="twitter:image" content="../assets/og-image.png">
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <script>
+        document.documentElement.classList.add("js");
+        window.setTimeout(function () {
+            if (!window.__dexPageReady) {
+                document.documentElement.classList.remove("js");
+            }
+        }, 1500);
+    </script>
     <link rel="stylesheet" href="../styles.css">
     <link rel="stylesheet" href="../docs.css">
+    <noscript>
+        <style>
+            .docs-search { display: none !important; }
+        </style>
+    </noscript>
 </head>
-<body>
+<body data-docs-root="../">
     <a class="skip-link" href="#content">Skip to content</a>
 
     <header class="site-header" data-header>
@@ -42,7 +65,7 @@
 
             <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
                 <a href="../index.html#features">Features</a>
-                <a class="active" href="../starter/installing.html">Docs</a>
+                <a class="active" href="../starter/installing.html" aria-current="page">Docs</a>
                 <a href="../index.html#quickstart">Quickstart</a>
                 <a href="../index.html#middleware">Middleware</a>
                 <a href="../index.html#examples">Examples</a>
@@ -58,208 +81,306 @@
         </div>
     </header>
 
+    <div class="container docs-toolbar">
+        <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">Home</a><span class="separator">/</span><span>API Reference</span><span class="separator">/</span><span aria-current="page">Router</span>
+        </nav>
+
+        <div class="docs-search" role="search">
+            <label class="sr-only" for="docs-search-input">Search documentation</label>
+            <div class="docs-search-field">
+                <svg class="icon search-icon" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="m20 20-3.5-3.5"/>
+                </svg>
+                <input id="docs-search-input" type="search" placeholder="Search documentation"
+                       autocomplete="off" spellcheck="false"
+                       role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                       aria-expanded="false" aria-controls="docs-search-results"
+                       aria-describedby="docs-search-status">
+                <kbd class="docs-search-key" aria-hidden="true">/</kbd>
+            </div>
+            <div class="docs-search-results" id="docs-search-results"
+                 role="listbox" aria-label="Search results" hidden></div>
+            <p class="sr-only" id="docs-search-status" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+
     <div class="container docs-wrap">
-        <aside class="docs-sidebar" aria-label="Documentation Navigation">
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Getting Started</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li>
-                    <li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li>
-                    <li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li>
-                    <li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li>
-                    <li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Guide</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
-                    <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
-                    <li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li>
-                    <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">API Reference</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="app.html">App</a></li>
-                    <li><a class="docs-nav-link" href="request.html">Request (req)</a></li>
-                    <li><a class="docs-nav-link" href="response.html">Response (res)</a></li>
-                    <li><a class="docs-nav-link active" href="router.html">Router</a></li>
-                </ul>
-            </div>
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+            <div class="docs-nav-group"><div class="docs-nav-heading">Getting Started</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li><li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li><li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li><li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li><li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">Guide</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li><li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li><li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li><li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">API Reference</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="app.html">App</a></li><li><a class="docs-nav-link" href="request.html">Request (req)</a></li><li><a class="docs-nav-link" href="response.html">Response (res)</a></li><li><a class="docs-nav-link active" href="router.html" aria-current="page">Router</a></li></ul></div>
         </aside>
 
-        <main class="docs-content" id="content">
-            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
-                <a href="../index.html">Home</a>
-                <span class="separator">/</span>
-                <span>API Reference</span>
-                <span class="separator">/</span>
-                <span aria-current="page">Router</span>
-            </nav>
+        <main class="docs-content" id="content" tabindex="-1">
+            <header class="docs-header">
+                <h1 class="docs-title">Router</h1>
+                <p class="docs-lead">A Router instance is a complete middleware and routing system; for this reason, it is often referred to as a &quot;mini-app&quot;.</p>
+            </header>
 
-            <h1>Router</h1>
-            <p class="lead">
-                A <code>Router</code> instance is a complete middleware and routing system; for this reason, it is often referred to as a "mini-app".
-            </p>
+            <p>Every <code>dex</code> application (<code>App</code>) inherits from <code>Router</code>. You can also instantiate isolated <code>Router</code> instances and mount them on paths using <code>app.use("/prefix", router)</code>.</p>
+<h2 id="instantiation">Instantiation</h2>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-1" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-1" tabindex="0" aria-label="D code example"><code class="language-d"><span class="k">import</span><span class="w"> </span><span class="n">dex</span><span class="p">;</span>
 
-            <p>
-                Every <code>dex</code> application (<code>App</code>) inherits from <code>Router</code>. You can also instantiate isolated <code>Router</code> instances and mount them on paths using <code>app.use("/prefix", router)</code>.
-            </p>
+<span class="k">auto</span><span class="w"> </span><span class="n">router</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Router</span><span class="p">();</span>
+</code></pre>
+</div>
+<h2 id="properties">Properties</h2>
+<h3 id="routercasesensitive">router.caseSensitive</h3>
+<p>Enables case-sensitive route matching. Defaults to <code>false</code> (meaning <code>/Users</code> matches <code>/users</code>).</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-2" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-2" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">router</span><span class="p">.</span><span class="n">caseSensitive</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+</code></pre>
+</div>
+<h2 id="methods">Methods</h2>
+<h3 id="routerusepath-middleware">router.use([path], [middleware...])</h3>
+<p>Mounts middleware or a sub-router on this router. If <code>path</code> is specified, the middleware only runs for paths matching that prefix.</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-3" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-3" tabindex="0" aria-label="D code example"><code class="language-d"><span class="c1">// Runs on every request passing through this router</span>
+<span class="n">router</span><span class="p">.</span><span class="n">use</span><span class="p">((</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// perform check or authentication</span>
+<span class="w">    </span><span class="n">next</span><span class="p">();</span>
+<span class="p">});</span>
 
-            <h2>Instantiation</h2>
-            <pre><code>import dex;
+<span class="c1">// Runs only under /api</span>
+<span class="n">router</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">"/api"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">next</span><span class="p">();</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h3 id="routeruseerrorhandler">router.use(ErrorHandler)</h3>
+<p>Registers an error-handling middleware delegate with signature <code>void delegate(Throwable error, Request req, Response res, Next next)</code>.</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-4" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-4" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">router</span><span class="p">.</span><span class="n">use</span><span class="p">((</span><span class="n">err</span><span class="p">,</span><span class="w"> </span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">status</span><span class="p">(</span><span class="mi">500</span><span class="p">).</span><span class="n">send</span><span class="p">(</span><span class="s">"Router Error: "</span><span class="w"> </span><span class="p">~</span><span class="w"> </span><span class="n">err</span><span class="p">.</span><span class="n">msg</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h3 id="routerusepath-router">router.use([path], Router)</h3>
+<p>Mounts a sub-router. When requests match <code>path</code>, <code>req.baseUrl</code> is updated to include the prefix and <code>req.path</code> is adjusted to the remainder of the path.</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-5" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-5" tabindex="0" aria-label="D code example"><code class="language-d"><span class="k">auto</span><span class="w"> </span><span class="n">api</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Router</span><span class="p">();</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">v1</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Router</span><span class="p">();</span>
 
-auto router = new Router();</code></pre>
+<span class="n">v1</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"/users"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">res</span><span class="p">.</span><span class="n">json</span><span class="p">([</span><span class="s">"Alice"</span><span class="p">,</span><span class="w"> </span><span class="s">"Bob"</span><span class="p">]));</span>
+<span class="n">api</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">"/v1"</span><span class="p">,</span><span class="w"> </span><span class="n">v1</span><span class="p">);</span>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">"/api"</span><span class="p">,</span><span class="w"> </span><span class="n">api</span><span class="p">);</span>
+<span class="c1">// Matches GET /api/v1/users</span>
+</code></pre>
+</div>
+<h3 id="routermethodpath-middleware-handler">router.METHOD(path, [middleware...], handler)</h3>
+<p>Registers one or more middlewares followed by a route handler for specific HTTP methods (variadic handler chains are supported). Supported methods include:</p>
+<ul>
+<li><code>router.get(path, ...)</code> (also responds to <code>HEAD</code> requests)</li>
+<li><code>router.post(path, ...)</code></li>
+<li><code>router.put(path, ...)</code></li>
+<li><code>router.delete(path, ...)</code> (or <code>delete_</code>)</li>
+<li><code>router.patch(path, ...)</code></li>
+<li><code>router.head(path, ...)</code></li>
+<li><code>router.options(path, ...)</code></li>
+<li><code>router.connect(path, ...)</code></li>
+<li><code>router.trace(path, ...)</code></li>
+</ul>
+<h3 id="routerparamname-callback">router.param(name, callback)</h3>
+<p>Registers a parameter pre-handler <code>void delegate(Request req, Response res, Next next, string value)</code> invoked once per request whenever route parameter <code>name</code> is matched.</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-6" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-6" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">router</span><span class="p">.</span><span class="n">param</span><span class="p">(</span><span class="s">"id"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// validate or preload entity by id</span>
+<span class="w">    </span><span class="n">next</span><span class="p">();</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h3 id="routerroutepath">router.route(path)</h3>
+<p>Returns a fluent <code>RouteChain</code> builder for registering multiple HTTP methods on the same path (use <code>.del(...)</code> or <code>.delete_(...)</code> for <code>DELETE</code>):</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-7" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-7" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">router</span><span class="p">.</span><span class="n">route</span><span class="p">(</span><span class="s">"/items/:id"</span><span class="p">)</span>
+<span class="w">    </span><span class="p">.</span><span class="n">get</span><span class="p">((</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">res</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s">"get "</span><span class="w"> </span><span class="p">~</span><span class="w"> </span><span class="n">req</span><span class="p">.</span><span class="n">param</span><span class="p">(</span><span class="s">"id"</span><span class="p">));</span><span class="w"> </span><span class="p">})</span>
+<span class="w">    </span><span class="p">.</span><span class="n">put</span><span class="p">((</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">res</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s">"put "</span><span class="w"> </span><span class="p">~</span><span class="w"> </span><span class="n">req</span><span class="p">.</span><span class="n">param</span><span class="p">(</span><span class="s">"id"</span><span class="p">));</span><span class="w"> </span><span class="p">})</span>
+<span class="w">    </span><span class="p">.</span><span class="n">del</span><span class="p">((</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">res</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s">"del "</span><span class="w"> </span><span class="p">~</span><span class="w"> </span><span class="n">req</span><span class="p">.</span><span class="n">param</span><span class="p">(</span><span class="s">"id"</span><span class="p">));</span><span class="w"> </span><span class="p">});</span>
+</code></pre>
+</div>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-8" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-8" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">router</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"/items"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">json</span><span class="p">(</span><span class="n">items</span><span class="p">);</span>
+<span class="p">});</span>
 
-            <h2>Properties</h2>
+<span class="n">router</span><span class="p">.</span><span class="n">post</span><span class="p">(</span><span class="s">"/items"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// create item</span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">status</span><span class="p">(</span><span class="mi">201</span><span class="p">).</span><span class="n">json</span><span class="p">(</span><span class="n">created</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h3 id="routerallpath-handler-middleware">router.all(path, handler | middleware)</h3>
+<p>Matches any HTTP method for the given path.</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-9" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-9" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">router</span><span class="p">.</span><span class="n">all</span><span class="p">(</span><span class="s">"/secret"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// runs for GET, POST, PUT, DELETE, etc.</span>
+<span class="w">    </span><span class="n">next</span><span class="p">();</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h3 id="routerroutemethod-path-handler-middleware">router.route(method, path, handler | middleware)</h3>
+<p>Registers a route handler for an arbitrary custom or extended HTTP verb (e.g. <code>SEARCH</code>, <code>PURGE</code>, <code>LINK</code>).</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-10" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-10" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">router</span><span class="p">.</span><span class="n">route</span><span class="p">(</span><span class="s">"PURGE"</span><span class="p">,</span><span class="w"> </span><span class="s">"/cache"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">clearCache</span><span class="p">();</span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s">"Cache purged"</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<h2 id="modular-architecture-example">Modular Architecture Example</h2>
+<p>Separate your application into domain-driven modules:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-11" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-11" tabindex="0" aria-label="D code example"><code class="language-d"><span class="c1">// routes/users.d</span>
+<span class="k">module</span><span class="w"> </span><span class="n">routes</span><span class="p">.</span><span class="n">users</span><span class="p">;</span>
 
-            <h3>router.caseSensitive</h3>
-            <p>
-                Enables case-sensitive route matching. Defaults to <code>false</code> (meaning <code>/Users</code> matches <code>/users</code>).
-            </p>
-            <pre><code>router.caseSensitive = true;</code></pre>
+<span class="k">import</span><span class="w"> </span><span class="n">dex</span><span class="p">;</span>
 
-            <h2>Methods</h2>
+<span class="n">Router</span><span class="w"> </span><span class="n">usersRouter</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Router</span><span class="p">();</span>
 
-            <h3>router.use([path], [middleware...])</h3>
-            <p>
-                Mounts middleware or a sub-router on this router. If <code>path</code> is specified, the middleware only runs for paths matching that prefix.
-            </p>
-            <pre><code>// Runs on every request passing through this router
-router.use((req, res, next) {
-    // perform check or authentication
-    next();
-});
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"/"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">res</span><span class="p">.</span><span class="n">json</span><span class="p">(</span><span class="n">allUsers</span><span class="p">()));</span>
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"/:id"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">user</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">findUser</span><span class="p">(</span><span class="n">req</span><span class="p">.</span><span class="n">param</span><span class="p">(</span><span class="s">"id"</span><span class="p">));</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(!</span><span class="n">user</span><span class="p">.</span><span class="n">found</span><span class="p">)</span>
+<span class="w">            </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">HttpError</span><span class="p">(</span><span class="mi">404</span><span class="p">,</span><span class="w"> </span><span class="s">"User not found"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">res</span><span class="p">.</span><span class="n">json</span><span class="p">(</span><span class="n">user</span><span class="p">);</span>
+<span class="w">    </span><span class="p">});</span>
 
-// Runs only under /api
-router.use("/api", (req, res, next) {
-    next();
-});</code></pre>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">r</span><span class="p">;</span>
+<span class="p">}</span>
 
-            <h3>router.use(ErrorHandler)</h3>
-            <p>
-                Registers an error-handling middleware delegate with signature <code>void delegate(Throwable error, Request req, Response res, Next next)</code>.
-            </p>
-            <pre><code>router.use((err, req, res, next) {
-    res.status(500).send("Router Error: " ~ err.msg);
-});</code></pre>
+<span class="c1">// app.d</span>
+<span class="k">import</span><span class="w"> </span><span class="n">dex</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="n">routes</span><span class="p">.</span><span class="n">users</span><span class="p">;</span>
 
-            <h3>router.use([path], Router)</h3>
-            <p>
-                Mounts a sub-router. When requests match <code>path</code>, <code>req.baseUrl</code> is updated to include the prefix and <code>req.path</code> is adjusted to the remainder of the path.
-            </p>
-            <pre><code>auto api = new Router();
-auto v1 = new Router();
+<span class="kt">void</span><span class="w"> </span><span class="n">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">dex</span><span class="p">.</span><span class="n">app</span><span class="p">();</span>
+<span class="w">    </span><span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">"/users"</span><span class="p">,</span><span class="w"> </span><span class="n">usersRouter</span><span class="p">());</span>
+<span class="w">    </span><span class="n">app</span><span class="p">.</span><span class="n">listen</span><span class="p">(</span><span class="mi">3000</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+</div>
 
-v1.get("/users", (req, res) => res.json(["Alice", "Bob"]));
-api.use("/v1", v1);
-app.use("/api", api);
-// Matches GET /api/v1/users</code></pre>
-
-            <h3>router.METHOD(path, handler | middleware)</h3>
-            <p>
-                Registers route handlers for specific HTTP methods. Supported methods include:
-            </p>
-            <ul>
-                <li><code>router.get(path, ...)</code> (also responds to <code>HEAD</code> requests)</li>
-                <li><code>router.post(path, ...)</code></li>
-                <li><code>router.put(path, ...)</code></li>
-                <li><code>router.delete(path, ...)</code></li>
-                <li><code>router.patch(path, ...)</code></li>
-                <li><code>router.head(path, ...)</code></li>
-                <li><code>router.options(path, ...)</code></li>
-                <li><code>router.connect(path, ...)</code></li>
-                <li><code>router.trace(path, ...)</code></li>
-            </ul>
-
-            <pre><code>router.get("/items", (req, res) {
-    res.json(items);
-});
-
-router.post("/items", (req, res) {
-    // create item
-    res.status(201).json(created);
-});</code></pre>
-
-            <h3>router.all(path, handler | middleware)</h3>
-            <p>
-                Matches any HTTP method for the given path.
-            </p>
-            <pre><code>router.all("/secret", (req, res, next) {
-    // runs for GET, POST, PUT, DELETE, etc.
-    next();
-});</code></pre>
-
-            <h3>router.route(method, path, handler | middleware)</h3>
-            <p>
-                Registers a route handler for an arbitrary custom or extended HTTP verb (e.g. <code>SEARCH</code>, <code>PURGE</code>, <code>LINK</code>).
-            </p>
-            <pre><code>router.route("PURGE", "/cache", (req, res) {
-    clearCache();
-    res.send("Cache purged");
-});</code></pre>
-
-            <h2>Modular Architecture Example</h2>
-            <p>
-                Separate your application into domain-driven modules:
-            </p>
-
-            <pre><code>// routes/users.d
-module routes.users;
-
-import dex;
-
-Router usersRouter()
-{
-    auto r = new Router();
-
-    r.get("/", (req, res) => res.json(allUsers()));
-    r.get("/:id", (req, res) {
-        auto user = findUser(req.param("id"));
-        if (!user.found)
-            throw new HttpError(404, "User not found");
-        res.json(user);
-    });
-
-    return r;
-}
-
-// app.d
-import dex;
-import routes.users;
-
-void main()
-{
-    auto app = dex.app();
-    app.use("/users", usersRouter());
-    app.listen(3000);
-}</code></pre>
-
-            <!-- Pager -->
-            <nav class="docs-pager" aria-label="Docs pagination">
-                <a class="pager-btn pager-prev" href="response.html">
-                    <span class="pager-label">&larr; Previous</span>
-                    <span class="pager-title">Response (res)</span>
-                </a>
-                <a class="pager-btn pager-next" href="../starter/installing.html">
-                    <span class="pager-label">Next &rarr;</span>
-                    <span class="pager-title">Getting Started: Installing</span>
-                </a>
-            </nav>
+            <nav class="docs-pager" aria-label="Docs pagination"><a class="pager-btn pager-prev" href="response.html"><span class="pager-label">&larr; Previous</span><span class="pager-title">Response (res)</span></a></nav>
         </main>
+
+        <aside class="docs-toc" aria-label="On this page"><p class="docs-toc-heading">On this page</p><div class="docs-toc-list"><div class="toc">
+<ul>
+<li><a href="#instantiation">Instantiation</a></li>
+<li><a href="#properties">Properties</a><ul>
+<li><a href="#routercasesensitive">router.caseSensitive</a></li>
+</ul>
+</li>
+<li><a href="#methods">Methods</a><ul>
+<li><a href="#routerusepath-middleware">router.use([path], [middleware...])</a></li>
+<li><a href="#routeruseerrorhandler">router.use(ErrorHandler)</a></li>
+<li><a href="#routerusepath-router">router.use([path], Router)</a></li>
+<li><a href="#routermethodpath-middleware-handler">router.METHOD(path, [middleware...], handler)</a></li>
+<li><a href="#routerparamname-callback">router.param(name, callback)</a></li>
+<li><a href="#routerroutepath">router.route(path)</a></li>
+<li><a href="#routerallpath-handler-middleware">router.all(path, handler | middleware)</a></li>
+<li><a href="#routerroutemethod-path-handler-middleware">router.route(method, path, handler | middleware)</a></li>
+</ul>
+</li>
+<li><a href="#modular-architecture-example">Modular Architecture Example</a></li>
+</ul>
+</div>
+</div></aside>
     </div>
 
     <footer class="site-footer">
         <div class="container footer-bottom">
-            <p>&copy; <span data-year>2026</span> <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>. MIT Licensed.</p>
+            <p>&copy; <span data-year>2026</span>
+                <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>.
+                MIT Licensed.</p>
         </div>
     </footer>
 
     <script src="../script.js"></script>
+    <script src="../docs.js"></script>
 </body>
 </html>
-

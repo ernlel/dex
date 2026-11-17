@@ -78,39 +78,39 @@ Focus: **Payload optimization, protection, and operational readiness.**
 
 ---
 
-## 🔧 Target Milestone: v0.5.0 (Proxy Readiness, Caching & Developer Ergonomics)
+## 🔧 Target Milestone: v0.5.0 (Proxy Readiness, Caching & Developer Ergonomics) — *Completed*
 
 Focus: **Reverse-proxy awareness, HTTP caching semantics, typed request binding, and Express-grade routing ergonomics.**
 
-- [ ] **Reverse Proxy Support (`app.trustProxy`)**
+- [x] **Reverse Proxy Support (`app.trustProxy`)**
   - Configurable proxy trust policy (boolean, trusted hop count, or explicit proxy IP/CIDR list).
   - Derive `req.ip`, `req.protocol`, `req.secure`, and `req.hostname` from `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` when trusted.
   - Ensure `rateLimit()` uses the resolved client IP cleanly behind Nginx, Caddy, or cloud load balancers.
 
-- [ ] **HTTP Caching & File Download Ergonomics (`ETag`, `304`, `res.download`)**
+- [x] **HTTP Caching & File Download Ergonomics (`ETag`, `304`, `res.download`)**
   - Generate weak/strong `ETag` headers and evaluate `If-None-Match` / `If-Modified-Since` conditional requests (`req.fresh` / `req.stale`) to return `304 Not Modified` in `sendFile`, `serveStatic`, and dynamic responses.
   - Add `res.download(string filePath, string filename = null)` helper setting `Content-Disposition: attachment` safely.
   - Emit `Set-Cookie` headers in `streamFile` responses (aligning file streaming with buffered responses).
 
-- [ ] **Typed Request Deserialization & Validation (`req.bind!T`)**
+- [x] **Typed Request Deserialization & Validation (`req.bind!T`)**
   - Complement `dex.jsonx` serialization with compile-time reflection deserialization (`fromJSONValue!T`) for JSON/form bodies and query structs.
   - Support `Nullable!T`, default field values, nested structs, and descriptive `HttpError` (`400`/`422`) messages on missing or mismatched fields.
 
-- [ ] **Router & Content Negotiation Ergonomics**
+- [x] **Router & Content Negotiation Ergonomics**
   - Support variadic handler/middleware chains on route methods (`app.get(path, mw1, mw2, ..., handler)`), lifting the current 3-handler overload cap.
   - Add `router.param("id", callback)` parameter pre-handlers and `app.route(path)` fluent method chaining (`.get(...).post(...)`).
   - Add `req.accepts(...)` and `res.format(...)` content negotiation helpers and optional automatic `405 Method Not Allowed` (`Allow` header) handling.
 
-- [ ] **Signed Cookies & Session Middleware (`dex.middleware.session`)**
+- [x] **Signed Cookies & Session Middleware (`dex.middleware.session`)**
   - HMAC-SHA256 cookie signing and verification (`res.cookie` signing / `req.signedCookies`).
   - Pluggable `SessionStore` interface with a thread-safe in-memory default store and TTL expiration.
 
-- [ ] **Documentation & Reference Sync**
+- [x] **Documentation & Reference Sync**
   - Fix stale `README.md` statements (lazy JSON body error timing, dual IPv4/IPv6 listener support, `res.render`, `req.maxBodySize`, `app.close(timeout)`, and `206` Range streaming).
   - Replace raw Markdown backticks in `docs/guide/middleware.html` headings (`compression()`, `rateLimit()`, `bodyLimit()`) with `<code>` tags and document all middleware `*Options` structs.
   - Complete API & landing page docs (`docs/api/request.html`, `docs/api/response.html`, `docs/api/router.html`, `docs/starter/faq.html`, `docs/index.html`) and deduplicate `[0.2.0]` vs `[0.3.0]`/`[0.4.0]` entries in `CHANGELOG.md`.
 
-- [ ] **Examples for v0.4.0–v0.5.0 Features**
+- [x] **Examples for v0.4.0–v0.5.0 Features**
   - Update existing examples (`examples/api-server`, `examples/file-server`) and/or add dedicated examples demonstrating `compression()`, `rateLimit()`, `bodyLimit()`, graceful shutdown (`shutdownTimeout`), `app.trustProxy`, `ETag`/`304`/`res.download()`, `req.bind!T`, `router.param()`, and signed-cookie sessions.
   - Add any new example apps to `.github/workflows/ci.yml` and `README.md`.
 

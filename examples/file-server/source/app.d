@@ -1,8 +1,9 @@
 /// Static file and chunked media streaming server demonstrating:
 /// - Directory static asset delivery with custom Cache-Control headers
-/// - Streaming file downloads with `res.sendFile` and `Content-Disposition`
+/// - Automatic `ETag` / `Last-Modified` and `304 Not Modified` conditional caching
+/// - Streaming file downloads with `res.download`
 /// - HTTP Range requests (`Range: bytes=start-end`) returning `206 Partial Content`
-/// - File inspection metadata API (`/api/files`)
+/// - File inspection metadata API (`/api/files`) with gzip/deflate compression
 /// - Custom 404 handler for missing assets
 module app;
 
@@ -28,6 +29,9 @@ void main()
 
     // Request logger
     app.use(logger());
+
+    // Compress JSON/text API responses
+    app.use(compression());
 
     // Security headers (protects against content sniffing and clickjacking)
     app.use(securityHeaders());
@@ -59,7 +63,7 @@ void main()
         res.json(list);
     });
 
-    // Download endpoint: forces browser download with Content-Disposition
+    // Download endpoint: forces browser download with sanitized Content-Disposition
     app.get("/download/:filename", (req, res)
     {
         // Sanitize filename to prevent directory traversal
@@ -69,11 +73,8 @@ void main()
         if (!exists(targetPath) || !isFile(targetPath))
             throw new HttpError(404, "Requested file not found: " ~ safeName);
 
-        // Instruct the client to download as an attachment
-        res.set("Content-Disposition", `attachment; filename="` ~ safeName ~ `"`);
-
-        // Stream file to client (supports 206 Partial Content range requests)
-        res.sendFile(targetPath);
+        // Stream file as an attachment (supports ETag/304 & 206 Partial Content)
+        res.download(targetPath, safeName);
     });
 
     // Custom 404 handler

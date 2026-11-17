@@ -252,9 +252,9 @@
                                 <path d="M16 4h2a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-2"/>
                             </svg>
                         </span>
-                        <h3>JSON in, JSON out</h3>
-                        <p>Parsed JSON, form, and text bodies. Query parameters and cookies are ready before your handler runs.</p>
-                        <p class="inline-code"><code>res.json(user)</code></p>
+                        <h3>JSON &amp; typed binding</h3>
+                        <p>Reflection serialization and <code>req.bind!T</code> validation for nested structs, defaults, enums, and <code>Nullable!T</code>.</p>
+                        <p class="inline-code"><code>auto dto = req.bind!UserInput();</code></p>
                     </article>
 
                     <article class="feature-card reveal">
@@ -268,7 +268,7 @@
                             </svg>
                         </span>
                         <h3>A server in the box</h3>
-                        <p>HTTP/1.1 keep-alive, chunked requests, <code>100-continue</code>, socket timeouts, and request limits without another dependency.</p>
+                        <p>HTTP/1.1 keep-alive, chunked requests, <code>ETag</code>/<code>304</code> caching, <code>trustProxy</code>, per-route <code>bodyLimit</code>, and graceful shutdown.</p>
                         <p class="inline-code"><code>app.listen(3000)</code></p>
                     </article>
 
@@ -281,9 +281,9 @@
                                 <path d="m9 12 2 2 4-4"/>
                             </svg>
                         </span>
-                        <h3>Static files, guarded</h3>
-                        <p><code>serveStatic</code> handles MIME types, index files, cache headers, and rejects traversal and symlink escapes.</p>
-                        <p class="inline-code"><code>app.use(serveStatic("./public"))</code></p>
+                        <h3>Batteries included</h3>
+                        <p><code>serveStatic</code> (with <code>206</code> ranges), <code>cors</code>, <code>securityHeaders</code>, <code>compression</code>, <code>rateLimit</code>, <code>session</code>, and <code>res.render</code> templates.</p>
+                        <p class="inline-code"><code>app.use(compression())</code></p>
                     </article>
 
                     <article class="feature-card feature-full reveal">
@@ -623,6 +623,21 @@ app.<span class="tok-fn">use</span>((<span class="tok-type">Throwable</span> err
                             </svg>
                         </span>
                     </a>
+
+                    <a class="example-card reveal" data-repo-path="examples/sessions" href="#quickstart">
+                        <span class="example-tag">Auth &amp; State</span>
+                        <h3>sessions</h3>
+                        <p>HMAC-SHA256 signed cookies with key rotation and server-side session middleware (MemorySessionStore).</p>
+                        <span class="example-link">
+                            Open example
+                            <svg class="icon" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.8"
+                                 stroke-linecap="round" stroke-linejoin="round"
+                                 aria-hidden="true">
+                                <path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>
+                            </svg>
+                        </span>
+                    </a>
                 </div>
 
                 <p class="examples-footnote reveal">
@@ -675,7 +690,7 @@ app.<span class="tok-fn">use</span>((<span class="tok-type">Throwable</span> err
                 <a href="#quickstart">Quickstart</a>
                 <a href="#middleware">Middleware</a>
                 <a href="#examples">Examples</a>
-                <a data-repo-file="README.md" href="#quickstart">Documentation</a>
+                <a href="starter/installing.html">Documentation</a>
                 <a data-github href="https://github.com" target="_blank" rel="noopener">GitHub</a>
             </nav>
 

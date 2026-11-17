@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-17
+
+### Added
+- **Reverse Proxy Support (`app.trustProxy`)**: Added [`TrustProxy`](file:///home/ernest/Projects/dex/source/dex/http.d) supporting `bool`, hop counts, and IPv4/IPv6 CIDR ranges (plus `"loopback"`, `"linklocal"`, `"uniquelocal"` aliases). Derives `req.ip`, `req.ips`, `req.protocol`, `req.secure`, and `req.hostname` from `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` when trusted, and integrates with `rateLimit()`.
+- **HTTP Caching & File Download Ergonomics (`ETag`, `304`, `res.download`)**: Added strong SHA-256 `ETag` generation on dynamic responses (`app.etag`), weak stat-based `ETag` generation in `sendFile`, `If-None-Match` and `If-Modified-Since` conditional request evaluation (`req.fresh` / `req.stale` returning `304 Not Modified`), and `res.download(filePath, filename)` with sanitized `Content-Disposition` (including RFC 5987 `filename*`).
+- **Typed Request Deserialization & Validation (`req.bind!T`, `req.bindQuery!T`)**: Added reflection-based `fromJSONValue!T` and `fromStringMap!T` in `dex.jsonx`, supporting nested structs, `Nullable!T`, enums, arrays, default field values, the `@optional` UDA, custom `fromJSON` hooks, and descriptive `422`/`400` `HttpError` messages.
+- **Router & Content Negotiation Ergonomics**: Added variadic middleware/handler chains on route methods and `use()`, `router.param(name, callback)` parameter pre-handlers, `app.route(path)` fluent `RouteChain` chaining, `req.accepts()` / `res.format()` content negotiation (`406 Not Acceptable`), and optional `405 Method Not Allowed` (`app.handleMethodNotAllowed`) with `Allow` headers.
+- **Signed Cookies & Session Middleware (`dex.session`)**: Added HMAC-SHA256 `signCookie` / `unsignCookie` with key rotation (`app.cookieSecrets`), `CookieOptions.signed`, `res.signedCookie()`, `req.signedCookies` / `req.signedCookie()`, `SessionStore` interface, thread-safe `MemorySessionStore` with TTL expiration, and `session()` middleware (`req.session`).
+- **Updated & New Examples**: Added `examples/sessions` and updated `examples/api-server` and `examples/file-server` to demonstrate `v0.4.0`–`v0.5.0` features; synced `README.md`, `docs/`, and `CHANGELOG.md`.
+
+### Fixed
+- **`Set-Cookie` emission in `streamFile`**: File streaming responses (`200`, `206`, and `416`) now emit `Set-Cookie` headers consistently with buffered responses.
+- **Weakened `ETag` on compressed responses**: `compression()` now weakens strong `ETag` headers (`W/"..."`) when applying `Content-Encoding`.
+
 ## [0.4.0] - 2026-11-17
 
 ### Added
@@ -43,12 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Adaptive body streaming**: `SocketReader.readExact` now reads into a dynamically growing buffer instead of allocating the full `Content-Length` immediately.
 
 ### Added
-- **Built-in View Engine & Template System (`res.render`)**: Integrated Handlebars/Mustache-style templating with zero external dependencies (`dex.view`). Features variable interpolation (`{{var}}`), raw output (`{{{raw}}}` / `{{&raw}}`), conditionals (`{{#if}}`, `{{#unless}}`, `{{^inverted}}`), loops (`{{#each}}`) with `@index`, `@first`, `@last`, `@key`, partials (`{{> header}}`), and XSS escaping. Includes `app.setViews()`, `app.engine()`, and in-memory template caching (`app.cacheViews`).
-- **Production REST API Example (`examples/api-server`)**: Added complete microservice example featuring Bearer token auth, modular sub-routers, query filtering, request validation, CORS, security headers, and structured JSON error responses.
-- **Static Asset & Streaming Server Example (`examples/file-server`)**: Added file server example demonstrating `serveStatic`, custom Cache-Control headers, file metadata API, and HTTP Range streaming (`206 Partial Content`).
-- **`cors` & `securityHeaders` middleware**: Added standard built-in CORS configuration and Helmet-style HTTP security headers middleware (`x-content-type-options`, `x-frame-options`, `referrer-policy`, `x-xss-protection`, `cross-origin-opener-policy`, `cross-origin-resource-policy`, and HSTS).
 - **Chunked file streaming & byte-range support**: `Response.sendFile` and `serveStatic` now stream files in 64 KiB chunks with $O(1)$ memory usage, advertising `Accept-Ranges: bytes` and supporting `Range` requests (`206 Partial Content` / `416 Range Not Satisfiable`).
-- **Express-style starter documentation & guides**: Comprehensive multi-page documentation under `docs/` matching Express.js starters (`installing.html`, `hello-world.html`, `basic-routing.html`, `static-files.html`, `faq.html`), deep guides (`routing.html`, `middleware.html`, `error-handling.html`), and full API reference (`app.html`, `request.html`, `response.html`, `router.html`).
 - **`Response.onFinish`**: Added a public API to register lifecycle callbacks run when an HTTP response completes (used by `logger` middleware without accessing private fields).
 - **Dual IPv4/IPv6 support**: The HTTP server now uses `getAddress(host, port)` during binding to support hostnames and IPv6 addresses.
 - **Regression test suite**: Added tests covering fragmented HTTP headers, pipelined requests, large bodies (200 KiB), sub-router error isolation, lazy body error propagation, header injection prevention, chunked range requests, CORS preflights, and security headers.

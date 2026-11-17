@@ -5,6 +5,9 @@ on:
     branches: [ main ]
     paths:
       - 'docs/**'
+      - 'docs-src/**'
+      - 'scripts/build_docs.py'
+      - 'requirements-docs.txt'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -26,6 +29,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install documentation dependencies
+        run: python3 -m pip install -r requirements-docs.txt
+
+      - name: Build Markdown documentation
+        run: python3 scripts/build_docs.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

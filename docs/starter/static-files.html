@@ -5,17 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#020617">
-    <title>Serving Static Files — Starter Guide — dex</title>
-    <meta name="description" content="Serve static files such as images, CSS, and JavaScript in dex with streaming and range support.">
+    <title>Serving Static Files — dex</title>
+    <meta name="description" content="Serve images, CSS stylesheets, client-side JavaScript, and media assets using the built-in serveStatic middleware.">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Serving Static Files — dex">
+    <meta property="og:description" content="Serve images, CSS stylesheets, client-side JavaScript, and media assets using the built-in serveStatic middleware.">
+    <meta property="og:image" content="../assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Serving Static Files — dex">
+    <meta name="twitter:description" content="Serve images, CSS stylesheets, client-side JavaScript, and media assets using the built-in serveStatic middleware.">
+    <meta name="twitter:image" content="../assets/og-image.png">
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <script>
+        document.documentElement.classList.add("js");
+        window.setTimeout(function () {
+            if (!window.__dexPageReady) {
+                document.documentElement.classList.remove("js");
+            }
+        }, 1500);
+    </script>
     <link rel="stylesheet" href="../styles.css">
     <link rel="stylesheet" href="../docs.css">
+    <noscript>
+        <style>
+            .docs-search { display: none !important; }
+        </style>
+    </noscript>
 </head>
-<body>
+<body data-docs-root="../">
     <a class="skip-link" href="#content">Skip to content</a>
 
     <header class="site-header" data-header>
@@ -42,7 +65,7 @@
 
             <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
                 <a href="../index.html#features">Features</a>
-                <a class="active" href="installing.html">Docs</a>
+                <a class="active" href="../starter/installing.html" aria-current="page">Docs</a>
                 <a href="../index.html#quickstart">Quickstart</a>
                 <a href="../index.html#middleware">Middleware</a>
                 <a href="../index.html#examples">Examples</a>
@@ -58,161 +81,161 @@
         </div>
     </header>
 
+    <div class="container docs-toolbar">
+        <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">Home</a><span class="separator">/</span><span>Getting Started</span><span class="separator">/</span><span aria-current="page">Serving Static Files</span>
+        </nav>
+
+        <div class="docs-search" role="search">
+            <label class="sr-only" for="docs-search-input">Search documentation</label>
+            <div class="docs-search-field">
+                <svg class="icon search-icon" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="m20 20-3.5-3.5"/>
+                </svg>
+                <input id="docs-search-input" type="search" placeholder="Search documentation"
+                       autocomplete="off" spellcheck="false"
+                       role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                       aria-expanded="false" aria-controls="docs-search-results"
+                       aria-describedby="docs-search-status">
+                <kbd class="docs-search-key" aria-hidden="true">/</kbd>
+            </div>
+            <div class="docs-search-results" id="docs-search-results"
+                 role="listbox" aria-label="Search results" hidden></div>
+            <p class="sr-only" id="docs-search-status" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+
     <div class="container docs-wrap">
-        <aside class="docs-sidebar" aria-label="Documentation Navigation">
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Getting Started</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="installing.html">Installing</a></li>
-                    <li><a class="docs-nav-link" href="hello-world.html">Hello World</a></li>
-                    <li><a class="docs-nav-link" href="basic-routing.html">Basic Routing</a></li>
-                    <li><a class="docs-nav-link active" href="static-files.html">Static Files</a></li>
-                    <li><a class="docs-nav-link" href="faq.html">FAQ</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Guide</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
-                    <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
-                    <li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li>
-                    <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">API Reference</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../api/app.html">App</a></li>
-                    <li><a class="docs-nav-link" href="../api/request.html">Request (req)</a></li>
-                    <li><a class="docs-nav-link" href="../api/response.html">Response (res)</a></li>
-                    <li><a class="docs-nav-link" href="../api/router.html">Router</a></li>
-                </ul>
-            </div>
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+            <div class="docs-nav-group"><div class="docs-nav-heading">Getting Started</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="installing.html">Installing</a></li><li><a class="docs-nav-link" href="hello-world.html">Hello World</a></li><li><a class="docs-nav-link" href="basic-routing.html">Basic Routing</a></li><li><a class="docs-nav-link active" href="static-files.html" aria-current="page">Static Files</a></li><li><a class="docs-nav-link" href="faq.html">FAQ</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">Guide</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li><li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li><li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li><li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">API Reference</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../api/app.html">App</a></li><li><a class="docs-nav-link" href="../api/request.html">Request (req)</a></li><li><a class="docs-nav-link" href="../api/response.html">Response (res)</a></li><li><a class="docs-nav-link" href="../api/router.html">Router</a></li></ul></div>
         </aside>
 
-        <main class="docs-content" id="content">
-            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
-                <a href="../index.html">Home</a>
-                <span class="separator">/</span>
-                <span>Getting Started</span>
-                <span class="separator">/</span>
-                <span aria-current="page">Static Files</span>
-            </nav>
-
+        <main class="docs-content" id="content" tabindex="-1">
             <header class="docs-header">
                 <h1 class="docs-title">Serving Static Files</h1>
-                <p class="docs-lead">
-                    Serve images, CSS stylesheets, client-side JavaScript, and media assets using the built-in <code>serveStatic</code> middleware.
-                </p>
+                <p class="docs-lead">Serve images, CSS stylesheets, client-side JavaScript, and media assets using the built-in serveStatic middleware.</p>
             </header>
 
-            <h2>Basic Usage</h2>
-            <p>
-                Pass the path to your static directory to <code>serveStatic()</code>:
-            </p>
+            <h2 id="basic-usage">Basic Usage</h2>
+<p>Pass the path to your static directory to <code>serveStatic()</code>:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">source/app.d</span>
+    <button class="copy-button" type="button" data-copy="code-1" aria-label="Copy source/app.d">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-1" tabindex="0" aria-label="source/app.d code example"><code class="language-d"><span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">serveStatic</span><span class="p">(</span><span class="s">"public"</span><span class="p">));</span>
+</code></pre>
+</div>
+<p>Now you can load files residing inside the <code>public</code> directory from the root URL:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-2" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-2" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">http</span><span class="p">:</span><span class="c1">//localhost:3000/images/kitten.jpg</span>
+<span class="n">http</span><span class="p">:</span><span class="c1">//localhost:3000/css/style.css</span>
+<span class="n">http</span><span class="p">:</span><span class="c1">//localhost:3000/js/app.js</span>
+<span class="n">http</span><span class="p">:</span><span class="c1">//localhost:3000/hello.html</span>
+</code></pre>
+</div>
+<h2 id="virtual-path-prefix">Virtual Path Prefix</h2>
+<p>To create a virtual path prefix (where the prefix does not actually exist in the file system), mount <code>serveStatic</code> under a path:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-3" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-3" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">"/static"</span><span class="p">,</span><span class="w"> </span><span class="n">serveStatic</span><span class="p">(</span><span class="s">"public"</span><span class="p">));</span>
+</code></pre>
+</div>
+<p>Files can now be accessed via the <code>/static</code> path prefix:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">Text</span>
+    <button class="copy-button" type="button" data-copy="code-4" aria-label="Copy Text">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-4" tabindex="0" aria-label="Text code example"><code class="language-text">http://localhost:3000/static/images/kitten.jpg
+http://localhost:3000/static/css/style.css
+</code></pre>
+</div>
+<h2 id="static-configuration-options">Static Configuration Options</h2>
+<p>Customize static file serving behavior using <code>StaticOptions</code>:</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">D</span>
+    <button class="copy-button" type="button" data-copy="code-5" aria-label="Copy D">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-5" tabindex="0" aria-label="D code example"><code class="language-d"><span class="n">StaticOptions</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"index.html"</span><span class="p">;</span><span class="w">                   </span><span class="c1">// Default file for directory requests</span>
+<span class="n">options</span><span class="p">.</span><span class="n">cacheControl</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">"public, max-age=86400"</span><span class="p">;</span><span class="w">  </span><span class="c1">// Custom Cache-Control header</span>
+<span class="n">options</span><span class="p">.</span><span class="n">dotFiles</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">                        </span><span class="c1">// Ignore hidden files (.env, .git)</span>
 
-            <div class="code-frame">
-                <div class="code-bar">
-                    <span class="code-title">source/app.d</span>
-                    <button class="copy-button" type="button" aria-label="Copy code">
-                        <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                        <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                    </button>
-                </div>
-                <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-fn">serveStatic</span>(<span class="tok-str">"public"</span>));</code></pre>
-            </div>
+<span class="n">app</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="n">serveStatic</span><span class="p">(</span><span class="s">"./public"</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">));</span>
+</code></pre>
+</div>
+<h2 id="sending-individual-files-from-disk">Sending Individual Files from Disk</h2>
+<p>Use <code>res.sendFile(filePath)</code> to send a specific file from disk inside any route handler. Files are streamed in <strong>64 KiB chunks</strong> with zero memory accumulation and full support for <strong>HTTP Range requests</strong> (<code>206 Partial Content</code>):</p>
+<div class="code-frame">
+  <div class="code-bar">
+    <span class="code-title">Streaming File</span>
+    <button class="copy-button" type="button" data-copy="code-6" aria-label="Copy Streaming File">
+      <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+    </button>
+  </div>
+  <pre class="code" id="code-6" tabindex="0" aria-label="Streaming File code example"><code class="language-d"><span class="n">app</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"/download/report.pdf"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">req</span><span class="p">,</span><span class="w"> </span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">sendFile</span><span class="p">(</span><span class="s">"./data/annual_report.pdf"</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre>
+</div>
+<blockquote>
+<p><strong>Audio &amp; Video Seeking Support</strong></p>
+<p>Because <code>sendFile</code> and <code>serveStatic</code> implement <code>Accept-Ranges: bytes</code>, HTML5 <code>&lt;audio&gt;</code> and <code>&lt;video&gt;</code> players can seek seamlessly forward and backward without downloading the entire media file.</p>
+</blockquote>
 
-            <p>
-                Now you can load files residing inside the <code>public</code> directory from the root URL:
-            </p>
-
-            <div class="code-frame">
-                <pre class="code"><code>http://localhost:3000/images/kitten.jpg
-http://localhost:3000/css/style.css
-http://localhost:3000/js/app.js
-http://localhost:3000/hello.html</code></pre>
-            </div>
-
-            <h2>Virtual Path Prefix</h2>
-            <p>
-                To create a virtual path prefix (where the prefix does not actually exist in the file system), mount <code>serveStatic</code> under a path:
-            </p>
-
-            <div class="code-frame">
-                <pre class="code"><code>app.<span class="tok-fn">use</span>(<span class="tok-str">"/static"</span>, <span class="tok-fn">serveStatic</span>(<span class="tok-str">"public"</span>));</code></pre>
-            </div>
-
-            <p>
-                Files can now be accessed via the <code>/static</code> path prefix:
-            </p>
-
-            <div class="code-frame">
-                <pre class="code"><code>http://localhost:3000/static/images/kitten.jpg
-http://localhost:3000/static/css/style.css</code></pre>
-            </div>
-
-            <h2>Static Configuration Options</h2>
-            <p>
-                Customize static file serving behavior using <code>StaticOptions</code>:
-            </p>
-
-            <div class="code-frame">
-                <pre class="code"><code><span class="tok-type">StaticOptions</span> options;
-options.index = <span class="tok-str">"index.html"</span>;                   <span class="tok-comment">// Default file for directory requests</span>
-options.cacheControl = <span class="tok-str">"public, max-age=86400"</span>;  <span class="tok-comment">// Custom Cache-Control header</span>
-options.dotFiles = <span class="tok-kw">false</span>;                        <span class="tok-comment">// Ignore hidden files (.env, .git)</span>
-
-app.<span class="tok-fn">use</span>(<span class="tok-fn">serveStatic</span>(<span class="tok-str">"./public"</span>, options));</code></pre>
-            </div>
-
-            <h2>Sending Individual Files from Disk</h2>
-            <p>
-                Use <code>res.sendFile(filePath)</code> to send a specific file from disk inside any route handler. Files are streamed in <strong>64 KiB chunks</strong> with zero memory accumulation and full support for <strong>HTTP Range requests</strong> (<code>206 Partial Content</code>):
-            </p>
-
-            <div class="code-frame">
-                <div class="code-bar">
-                    <span class="code-title">Streaming File</span>
-                    <button class="copy-button" type="button" aria-label="Copy code">
-                        <svg class="icon icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                        <svg class="icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                    </button>
-                </div>
-                <pre class="code"><code>app.<span class="tok-fn">get</span>(<span class="tok-str">"/download/report.pdf"</span>, (req, res) {
-    res.<span class="tok-fn">sendFile</span>(<span class="tok-str">"./data/annual_report.pdf"</span>);
-});</code></pre>
-            </div>
-
-            <div class="callout tip">
-                <div class="callout-title">Audio &amp; Video Seeking Support</div>
-                <p>
-                    Because <code>sendFile</code> and <code>serveStatic</code> implement <code>Accept-Ranges: bytes</code>, HTML5 <code>&lt;audio&gt;</code> and <code>&lt;video&gt;</code> players can seek seamlessly forward and backward without downloading the entire media file.
-                </p>
-            </div>
-
-            <!-- Pager -->
-            <nav class="docs-pager" aria-label="Docs pagination">
-                <a class="pager-btn pager-prev" href="basic-routing.html">
-                    <span class="pager-label">&larr; Previous</span>
-                    <span class="pager-title">Basic Routing</span>
-                </a>
-                <a class="pager-btn pager-next" href="faq.html">
-                    <span class="pager-label">Next &rarr;</span>
-                    <span class="pager-title">FAQ</span>
-                </a>
-            </nav>
+            <nav class="docs-pager" aria-label="Docs pagination"><a class="pager-btn pager-prev" href="basic-routing.html"><span class="pager-label">&larr; Previous</span><span class="pager-title">Basic Routing</span></a><a class="pager-btn pager-next" href="faq.html"><span class="pager-label">Next &rarr;</span><span class="pager-title">FAQ</span></a></nav>
         </main>
+
+        <aside class="docs-toc" aria-label="On this page"><p class="docs-toc-heading">On this page</p><div class="docs-toc-list"><div class="toc">
+<ul>
+<li><a href="#basic-usage">Basic Usage</a></li>
+<li><a href="#virtual-path-prefix">Virtual Path Prefix</a></li>
+<li><a href="#static-configuration-options">Static Configuration Options</a></li>
+<li><a href="#sending-individual-files-from-disk">Sending Individual Files from Disk</a></li>
+</ul>
+</div>
+</div></aside>
     </div>
 
     <footer class="site-footer">
         <div class="container footer-bottom">
-            <p>&copy; <span data-year>2026</span> <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>. MIT Licensed.</p>
+            <p>&copy; <span data-year>2026</span>
+                <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>.
+                MIT Licensed.</p>
         </div>
     </footer>
 
     <script src="../script.js"></script>
+    <script src="../docs.js"></script>
 </body>
 </html>
-

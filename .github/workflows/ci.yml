@@ -37,3 +37,4 @@ jobs:
           (cd examples/api-server && dub build)
           (cd examples/file-server && dub build)
           (cd examples/views && dub build)
+          (cd examples/sessions && dub build)

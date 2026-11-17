@@ -1,8 +1,8 @@
 /// Production-structured REST API microservice demonstrating:
-/// - Modular sub-routers (`/api/v1`)
-/// - Bearer token authentication middleware
-/// - Built-in CORS and Helmet-style security headers
-/// - Request parameter and body validation
+/// - Modular sub-routers (`/api/v1`) and `router.param` pre-handlers
+/// - Typed request binding (`req.bind!T`, `req.bindQuery!T`)
+/// - Bearer token authentication, rate limiting, compression, and `bodyLimit()`
+/// - Reverse-proxy trust (`app.trustProxy`), `405 Method Not Allowed`, and graceful shutdown
 /// - Centralized structured JSON error handling
 module app;
 
@@ -14,6 +14,7 @@ import std.conv : ConvException, to;
 import std.datetime : Clock;
 import std.string : icmp, strip, toLower;
 import std.stdio : writeln;
+import std.typecons : Nullable;
 
 /// Product data structure.
 struct Product
@@ -80,6 +81,29 @@ struct RootResponse
     string[] endpoints;
 }
 
+/// Typed login payload.
+struct LoginInput
+{
+    string username;
+    string password;
+}
+
+/// Typed query filter for product listing.
+struct ProductQuery
+{
+    Nullable!string search;
+    Nullable!string category;
+}
+
+/// Typed payload for creating a product.
+struct CreateProductInput
+{
+    string name;
+    string category;
+    double price;
+    bool inStock = true;
+}
+
 /// Authentication sub-router.
 Router authRouter()
 {
@@ -88,21 +112,10 @@ Router authRouter()
     // POST /api/v1/auth/login
     r.post("/login", (req, res)
     {
-        string username;
-        string password;
-
-        try
-        {
-            username = req.bodyValue!string("username");
-            password = req.bodyValue!string("password");
-        }
-        catch (Exception)
-        {
-            throw new HttpError(400, "Request body must include 'username' and 'password' fields");
-        }
+        auto creds = req.bind!LoginInput();
 
         // Demo credentials check (admin / dexpass)
-        if (username == "admin" && password == "dexpass")
+        if (creds.username == "admin" && creds.password == "dexpass")
         {
             res.json([
                 "token": "secret-token-123",
@@ -124,11 +137,22 @@ Router productsRouter()
 {
     auto r = new Router;
 
-    // GET /api/v1/products - List with optional filtering
+    // Validate `:id` once for all routes using `:id`.
+    r.param("id", (req, res, next, rawId)
+    {
+        try
+            to!size_t(rawId);
+        catch (ConvException)
+            throw new HttpError(400, "Product ID must be a positive integer");
+        next();
+    });
+
+    // GET /api/v1/products - List with typed query binding
     r.get("/", (req, res)
     {
-        string search = req.queryParam("search");
-        string category = req.queryParam("category");
+        auto q = req.bindQuery!ProductQuery();
+        const search = q.search.isNull ? "" : q.search.get;
+        const category = q.category.isNull ? "" : q.category.get;
 
         auto filtered = products.filter!(p =>
             (search.length == 0 || p.name.toLower.canFind(search.toLower)) &&
@@ -138,80 +162,65 @@ Router productsRouter()
         res.json(ProductsResponse(filtered.length, filtered));
     });
 
-    // GET /api/v1/products/:id - Get product by ID
-    r.get("/:id", (req, res)
-    {
-        size_t id;
-        try
-            id = to!size_t(req.param("id"));
-        catch (ConvException)
-            throw new HttpError(400, "Product ID must be a positive integer");
-
-        foreach (ref p; products)
+    // Fluent route chaining for `/products/:id`
+    r.route("/:id")
+        .get((req, res)
         {
-            if (p.id == id)
+            const id = to!size_t(req.param("id"));
+            foreach (ref p; products)
             {
-                res.json(p);
-                return;
+                if (p.id == id)
+                {
+                    res.json(p);
+                    return;
+                }
             }
-        }
+            throw new HttpError(404, "Product not found");
+        })
+        .del(requireAuth(), (req, res)
+        {
+            const id = to!size_t(req.param("id"));
+            size_t index = size_t.max;
+            foreach (i, ref p; products)
+            {
+                if (p.id == id)
+                {
+                    index = i;
+                    break;
+                }
+            }
 
-        throw new HttpError(404, "Product not found");
-    });
+            if (index == size_t.max)
+                throw new HttpError(404, "Product not found");
+
+            products = products[0 .. index] ~ products[index + 1 .. $];
+            res.status(200).json(DeleteResponse(true, id));
+        });
 
     // POST /api/v1/products - Create a new product (requires authentication)
     r.post("/", requireAuth(), (req, res)
     {
-        string name;
-        string category;
-        double price;
+        auto input = req.bind!CreateProductInput();
 
-        try
-        {
-            name = req.bodyValue!string("name");
-            category = req.bodyValue!string("category");
-            price = req.bodyValue!double("price");
-        }
-        catch (Exception)
-        {
-            throw new HttpError(400, "Product requires 'name' (string), 'category' (string), and 'price' (number)");
-        }
+        if (input.name.length == 0)
+            throw new HttpError(422, "Product 'name' must not be empty");
+        if (input.price < 0.0)
+            throw new HttpError(422, "Product 'price' must be non-negative");
 
-        if (name.length == 0)
-            throw new HttpError(400, "Product 'name' must not be empty");
-        if (price < 0.0)
-            throw new HttpError(400, "Product 'price' must be non-negative");
-
-        auto newProduct = Product(nextId++, name, category, price, true);
+        auto newProduct = Product(nextId++, input.name, input.category,
+                                  input.price, input.inStock);
         products ~= newProduct;
 
         res.status(201).json(newProduct);
     });
 
-    // DELETE /api/v1/products/:id - Delete product (requires authentication)
-    r.delete("/:id", requireAuth(), (req, res)
+    // POST /api/v1/products/import - Raises body limit above the 64 KiB global cap
+    r.post("/import", requireAuth(), bodyLimit(2 * 1024 * 1024), (req, res)
     {
-        size_t id;
-        try
-            id = to!size_t(req.param("id"));
-        catch (ConvException)
-            throw new HttpError(400, "Product ID must be a positive integer");
-
-        size_t index = size_t.max;
-        foreach (i, ref p; products)
-        {
-            if (p.id == id)
-            {
-                index = i;
-                break;
-            }
-        }
-
-        if (index == size_t.max)
-            throw new HttpError(404, "Product not found");
-
-        products = products[0 .. index] ~ products[index + 1 .. $];
-        res.status(200).json(DeleteResponse(true, id));
+        auto batch = req.bind!(CreateProductInput[])();
+        foreach (item; batch)
+            products ~= Product(nextId++, item.name, item.category, item.price, item.inStock);
+        res.status(201).json(["imported": batch.length]);
     });
 
     return r;
@@ -222,10 +231,15 @@ void main()
     startTime = MonoTime.currTime;
     auto app = new App;
 
+    // Production server configuration
+    app.maxBodySize = 64 * 1024;
+    app.shutdownTimeout = 5.dur!"seconds";
+    app.trustProxy = ["loopback", "10.0.0.0/8"];
+    app.handleMethodNotAllowed = true;
+
     // Standard middleware stack
     app.use(logger());
-
-    // Security headers (Helmet-style defaults)
+    app.use(compression());
     app.use(securityHeaders());
 
     // CORS configuration for REST APIs
@@ -235,15 +249,30 @@ void main()
     corsOpt.headers = "Content-Type, Authorization";
     app.use(cors(corsOpt));
 
-    // Health check endpoint
+    // Rate limiting on API endpoints (120 req/min per resolved client IP)
+    RateLimitOptions rl;
+    rl.max = 120;
+    rl.window = 60.dur!"seconds";
+    app.use("/api", rateLimit(rl));
+
+    // Health check endpoint with content negotiation (JSON or plain text)
     app.get("/health", (req, res)
     {
         auto uptime = (MonoTime.currTime - startTime).total!"seconds";
-        res.json([
-            "status": "healthy",
-            "uptimeSeconds": uptime.to!string,
-            "timestamp": Clock.currTime().toISOExtString(),
-            "version": "1.0.0"
+        res.format([
+            "json": (Request r, Response w)
+            {
+                w.json([
+                    "status": "healthy",
+                    "uptimeSeconds": uptime.to!string,
+                    "clientIp": r.ip,
+                    "timestamp": Clock.currTime().toISOExtString()
+                ]);
+            },
+            "text": (Request r, Response w)
+            {
+                w.send("healthy (" ~ uptime.to!string ~ "s)");
+            }
         ]);
     });
 
@@ -265,6 +294,7 @@ void main()
                 "GET  /api/v1/products",
                 "GET  /api/v1/products/:id",
                 "POST /api/v1/products (Bearer auth)",
+                "POST /api/v1/products/import (Bearer auth, 2 MiB limit)",
                 "DELETE /api/v1/products/:id (Bearer auth)"
             ]
         ));

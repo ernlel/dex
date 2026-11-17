@@ -5,17 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#020617">
-    <title>App — API Reference — dex</title>
-    <meta name="description" content="API reference for the App class in dex.">
+    <title>App — dex</title>
+    <meta name="description" content="The top-level application class inheriting from Router and managing the HTTP/1.1 lifecycle.">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="App — dex">
+    <meta property="og:description" content="The top-level application class inheriting from Router and managing the HTTP/1.1 lifecycle.">
+    <meta property="og:image" content="../assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="App — dex">
+    <meta name="twitter:description" content="The top-level application class inheriting from Router and managing the HTTP/1.1 lifecycle.">
+    <meta name="twitter:image" content="../assets/og-image.png">
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&amp;family=Poppins:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <script>
+        document.documentElement.classList.add("js");
+        window.setTimeout(function () {
+            if (!window.__dexPageReady) {
+                document.documentElement.classList.remove("js");
+            }
+        }, 1500);
+    </script>
     <link rel="stylesheet" href="../styles.css">
     <link rel="stylesheet" href="../docs.css">
+    <noscript>
+        <style>
+            .docs-search { display: none !important; }
+        </style>
+    </noscript>
 </head>
-<body>
+<body data-docs-root="../">
     <a class="skip-link" href="#content">Skip to content</a>
 
     <header class="site-header" data-header>
@@ -42,7 +65,7 @@
 
             <nav class="nav" id="primary-nav" aria-label="Primary" data-nav>
                 <a href="../index.html#features">Features</a>
-                <a class="active" href="../starter/installing.html">Docs</a>
+                <a class="active" href="../starter/installing.html" aria-current="page">Docs</a>
                 <a href="../index.html#quickstart">Quickstart</a>
                 <a href="../index.html#middleware">Middleware</a>
                 <a href="../index.html#examples">Examples</a>
@@ -58,137 +81,116 @@
         </div>
     </header>
 
+    <div class="container docs-toolbar">
+        <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">Home</a><span class="separator">/</span><span>API Reference</span><span class="separator">/</span><span aria-current="page">App</span>
+        </nav>
+
+        <div class="docs-search" role="search">
+            <label class="sr-only" for="docs-search-input">Search documentation</label>
+            <div class="docs-search-field">
+                <svg class="icon search-icon" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="m20 20-3.5-3.5"/>
+                </svg>
+                <input id="docs-search-input" type="search" placeholder="Search documentation"
+                       autocomplete="off" spellcheck="false"
+                       role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                       aria-expanded="false" aria-controls="docs-search-results"
+                       aria-describedby="docs-search-status">
+                <kbd class="docs-search-key" aria-hidden="true">/</kbd>
+            </div>
+            <div class="docs-search-results" id="docs-search-results"
+                 role="listbox" aria-label="Search results" hidden></div>
+            <p class="sr-only" id="docs-search-status" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+
     <div class="container docs-wrap">
-        <aside class="docs-sidebar" aria-label="Documentation Navigation">
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Getting Started</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li>
-                    <li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li>
-                    <li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li>
-                    <li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li>
-                    <li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">Guide</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li>
-                    <li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li>
-                    <li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li>
-                    <li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li>
-                </ul>
-            </div>
-
-            <div class="docs-nav-group">
-                <div class="docs-nav-heading">API Reference</div>
-                <ul class="docs-nav-list">
-                    <li><a class="docs-nav-link active" href="app.html">App</a></li>
-                    <li><a class="docs-nav-link" href="request.html">Request (req)</a></li>
-                    <li><a class="docs-nav-link" href="response.html">Response (res)</a></li>
-                    <li><a class="docs-nav-link" href="router.html">Router</a></li>
-                </ul>
-            </div>
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+            <div class="docs-nav-group"><div class="docs-nav-heading">Getting Started</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../starter/installing.html">Installing</a></li><li><a class="docs-nav-link" href="../starter/hello-world.html">Hello World</a></li><li><a class="docs-nav-link" href="../starter/basic-routing.html">Basic Routing</a></li><li><a class="docs-nav-link" href="../starter/static-files.html">Static Files</a></li><li><a class="docs-nav-link" href="../starter/faq.html">FAQ</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">Guide</div><ul class="docs-nav-list"><li><a class="docs-nav-link" href="../guide/routing.html">Routing in Depth</a></li><li><a class="docs-nav-link" href="../guide/middleware.html">Middleware &amp; CORS</a></li><li><a class="docs-nav-link" href="../guide/templates.html">Template Engine &amp; Views</a></li><li><a class="docs-nav-link" href="../guide/error-handling.html">Error Handling</a></li></ul></div>
+<div class="docs-nav-group"><div class="docs-nav-heading">API Reference</div><ul class="docs-nav-list"><li><a class="docs-nav-link active" href="app.html" aria-current="page">App</a></li><li><a class="docs-nav-link" href="request.html">Request (req)</a></li><li><a class="docs-nav-link" href="response.html">Response (res)</a></li><li><a class="docs-nav-link" href="router.html">Router</a></li></ul></div>
         </aside>
 
-        <main class="docs-content" id="content">
-            <nav class="docs-breadcrumb" aria-label="Breadcrumb">
-                <a href="../index.html">Home</a>
-                <span class="separator">/</span>
-                <span>API Reference</span>
-                <span class="separator">/</span>
-                <span aria-current="page">App</span>
-            </nav>
-
+        <main class="docs-content" id="content" tabindex="-1">
             <header class="docs-header">
                 <h1 class="docs-title">App</h1>
-                <p class="docs-lead">
-                    The top-level application class inheriting from <code>Router</code> and managing the HTTP/1.1 lifecycle.
-                </p>
+                <p class="docs-lead">The top-level application class inheriting from Router and managing the HTTP/1.1 lifecycle.</p>
             </header>
 
-            <h2>Properties &amp; Configuration</h2>
-            <ul>
-                <li><code>idleTimeout: Duration</code> — Keep-alive socket idle timeout (default: <code>60.seconds</code>).</li>
-                <li><code>shutdownTimeout: Duration</code> — Maximum time <code>close()</code> waits for in-flight requests to drain (default: <code>5.seconds</code>).</li>
-                <li><code>handleSignals: bool</code> — Install POSIX <code>SIGINT</code>/<code>SIGTERM</code> graceful shutdown hooks during <code>listen()</code> and <code>wait()</code> (default: <code>true</code>).</li>
-                <li><code>maxBodySize: size_t</code> — Maximum accepted request body in bytes (default: 10 MiB).</li>
-                <li><code>maxHeaderSize: size_t</code> — Maximum accepted header bytes (default: 64 KiB).</li>
-                <li><code>maxConnections: size_t</code> — Max concurrent TCP connections; 0 means unlimited (default: 1024).</li>
-                <li><code>showStackTraces: bool</code> — Send exception stack traces to clients on 500 errors (default: false).</li>
-                <li><code>logErrors: bool</code> — Write unhandled 5xx errors to stderr (default: true).</li>
-                <li><code>caseSensitive: bool</code> — Enable case-sensitive route matching (default: false).</li>
-                <li><code>viewsDir: string</code> — Directory where templates reside (default: <code>"./views"</code>).</li>
-                <li><code>defaultViewEngine: string</code> — Default view extension (default: <code>"html"</code>).</li>
-                <li><code>cacheViews: bool</code> — Enable in-memory compiled template caching (default: <code>false</code>).</li>
-                <li><code>isListening: bool</code> — Whether the server is currently accepting connections.</li>
-                <li><code>port: ushort</code> — The bound TCP port (especially useful with ephemeral port <code>listen(0)</code>).</li>
-            </ul>
+            <h2 id="properties-configuration">Properties &amp; Configuration</h2>
+<ul>
+<li><code>idleTimeout: Duration</code> — Keep-alive socket idle timeout (default: <code>60.seconds</code>).</li>
+<li><code>shutdownTimeout: Duration</code> — Maximum time <code>close()</code> waits for in-flight requests to drain (default: <code>5.seconds</code>).</li>
+<li><code>handleSignals: bool</code> — Install POSIX <code>SIGINT</code>/<code>SIGTERM</code> graceful shutdown hooks during <code>listen()</code> and <code>wait()</code> (default: <code>true</code>).</li>
+<li><code>maxBodySize: size_t</code> — Maximum accepted request body in bytes (default: 10 MiB).</li>
+<li><code>maxHeaderSize: size_t</code> — Maximum accepted header bytes (default: 64 KiB).</li>
+<li><code>maxConnections: size_t</code> — Max concurrent TCP connections; 0 means unlimited (default: 1024).</li>
+<li><code>trustProxy: TrustProxy</code> — Reverse-proxy trust policy (<code>bool</code>, hop count, or IP/CIDR list) for <code>X-Forwarded-*</code> headers (default: disabled).</li>
+<li><code>etag: bool</code> — Automatically generate <code>ETag</code> headers and return <code>304 Not Modified</code> on matching conditional requests (default: <code>true</code>).</li>
+<li><code>handleMethodNotAllowed: bool</code> — Respond with <code>405 Method Not Allowed</code> and an <code>Allow</code> header when a path matches other HTTP methods (default: <code>false</code>).</li>
+<li><code>cookieSecret: string</code> / <code>cookieSecrets: string[]</code> — HMAC-SHA256 secret(s) for signed cookies (supports key rotation).</li>
+<li><code>showStackTraces: bool</code> — Send exception stack traces to clients on 500 errors (default: false).</li>
+<li><code>logErrors: bool</code> — Write unhandled 5xx errors to stderr (default: true).</li>
+<li><code>caseSensitive: bool</code> — Enable case-sensitive route matching (default: false).</li>
+<li><code>viewsDir: string</code> — Directory where templates reside (default: <code>"./views"</code>).</li>
+<li><code>defaultViewEngine: string</code> — Default view extension (default: <code>"html"</code>).</li>
+<li><code>cacheViews: bool</code> — Enable in-memory compiled template caching (default: <code>false</code>).</li>
+<li><code>isListening: bool</code> — Whether the server is currently accepting connections.</li>
+<li><code>port: ushort</code> — The bound TCP port (especially useful with ephemeral port <code>listen(0)</code>).</li>
+</ul>
+<h2 id="methods">Methods</h2>
+<h3 id="applistenport-host-0000-onready-null">app.listen(port, host = "0.0.0.0", onReady = null)</h3>
+<p>Binds the HTTP server to the given port and blocks until the server closes. If <code>port == 0</code>, the OS assigns an ephemeral free port.</p>
+<h3 id="appstartport-host-0000-onready-null">app.start(port, host = "0.0.0.0", onReady = null)</h3>
+<p>Starts accepting connections on a background accept thread without blocking the calling thread. Read the bound port from <code>app.port</code>.</p>
+<h3 id="appclosetimeout">app.close([timeout])</h3>
+<p>Stops accepting incoming connections, closes idle keep-alive sockets immediately, signals in-flight responses with <code>Connection: close</code>, and waits up to <code>timeout</code> (defaults to <code>shutdownTimeout</code>) for active requests to complete before forcing remaining connections closed.</p>
+<h3 id="appuseprefix-handler-middleware-router">app.use([prefix], handler | middleware | router)</h3>
+<p>Registers middleware or mounts a sub-router, optionally under a URL prefix.</p>
+<h3 id="appsetviewsdirectory">app.setViews(directory)</h3>
+<p>Sets the filesystem directory where view templates are located. Defaults to <code>"./views"</code>. Returns <code>this</code>.</p>
+<h3 id="appviewengineextension">app.viewEngine(extension)</h3>
+<p>Sets the default view file extension (e.g. <code>"html"</code>) used when <code>res.render()</code> is called without a file extension. Returns <code>this</code>.</p>
+<h3 id="appengineextension-renderer">app.engine(extension, renderer)</h3>
+<p>Registers a custom template engine delegate for the specified file extension with signature <code>string delegate(string templatePath, JSONValue locals)</code>. Returns <code>this</code>.</p>
+<h3 id="apprenderviewviewname-locals">app.renderView(viewName, locals)</h3>
+<p>Compiles and renders a view template file by name with the given JSON locals. Used internally by <code>res.render()</code>.</p>
 
-            <h2>Methods</h2>
-
-            <h3>app.listen(port, host = "0.0.0.0", onReady = null)</h3>
-            <p>
-                Binds the HTTP server to the given port and blocks until the server closes. If <code>port == 0</code>, the OS assigns an ephemeral free port.
-            </p>
-
-            <h3>app.start(port, host = "0.0.0.0", onReady = null)</h3>
-            <p>
-                Starts accepting connections on a background accept thread without blocking the calling thread. Read the bound port from <code>app.port</code>.
-            </p>
-
-            <h3>app.close([timeout])</h3>
-            <p>
-                Stops accepting incoming connections, closes idle keep-alive sockets immediately, signals in-flight responses with <code>Connection: close</code>, and waits up to <code>timeout</code> (defaults to <code>shutdownTimeout</code>) for active requests to complete before forcing remaining connections closed.
-            </p>
-
-            <h3>app.use([prefix], handler | middleware | router)</h3>
-            <p>
-                Registers middleware or mounts a sub-router, optionally under a URL prefix.
-            </p>
-
-            <h3>app.setViews(directory)</h3>
-            <p>
-                Sets the filesystem directory where view templates are located. Defaults to <code>"./views"</code>. Returns <code>this</code>.
-            </p>
-
-            <h3>app.viewEngine(extension)</h3>
-            <p>
-                Sets the default view file extension (e.g. <code>"html"</code>) used when <code>res.render()</code> is called without a file extension. Returns <code>this</code>.
-            </p>
-
-            <h3>app.engine(extension, renderer)</h3>
-            <p>
-                Registers a custom template engine delegate for the specified file extension with signature <code>string delegate(string templatePath, JSONValue locals)</code>. Returns <code>this</code>.
-            </p>
-
-            <h3>app.renderView(viewName, locals)</h3>
-            <p>
-                Compiles and renders a view template file by name with the given JSON locals. Used internally by <code>res.render()</code>.
-            </p>
-
-            <!-- Pager -->
-            <nav class="docs-pager" aria-label="Docs pagination">
-                <a class="pager-btn pager-prev" href="../guide/error-handling.html">
-                    <span class="pager-label">&larr; Previous</span>
-                    <span class="pager-title">Error Handling</span>
-                </a>
-                <a class="pager-btn pager-next" href="request.html">
-                    <span class="pager-label">Next &rarr;</span>
-                    <span class="pager-title">Request (req)</span>
-                </a>
-            </nav>
+            <nav class="docs-pager" aria-label="Docs pagination"><a class="pager-btn pager-prev" href="../guide/error-handling.html"><span class="pager-label">&larr; Previous</span><span class="pager-title">Error Handling</span></a><a class="pager-btn pager-next" href="request.html"><span class="pager-label">Next &rarr;</span><span class="pager-title">Request (req)</span></a></nav>
         </main>
+
+        <aside class="docs-toc" aria-label="On this page"><p class="docs-toc-heading">On this page</p><div class="docs-toc-list"><div class="toc">
+<ul>
+<li><a href="#properties-configuration">Properties &amp; Configuration</a></li>
+<li><a href="#methods">Methods</a><ul>
+<li><a href="#applistenport-host-0000-onready-null">app.listen(port, host = "0.0.0.0", onReady = null)</a></li>
+<li><a href="#appstartport-host-0000-onready-null">app.start(port, host = "0.0.0.0", onReady = null)</a></li>
+<li><a href="#appclosetimeout">app.close([timeout])</a></li>
+<li><a href="#appuseprefix-handler-middleware-router">app.use([prefix], handler | middleware | router)</a></li>
+<li><a href="#appsetviewsdirectory">app.setViews(directory)</a></li>
+<li><a href="#appviewengineextension">app.viewEngine(extension)</a></li>
+<li><a href="#appengineextension-renderer">app.engine(extension, renderer)</a></li>
+<li><a href="#apprenderviewviewname-locals">app.renderView(viewName, locals)</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div></aside>
     </div>
 
     <footer class="site-footer">
         <div class="container footer-bottom">
-            <p>&copy; <span data-year>2026</span> <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>. MIT Licensed.</p>
+            <p>&copy; <span data-year>2026</span>
+                <a href="https://github.com/ernlel" target="_blank" rel="noopener">ernlel</a>.
+                MIT Licensed.</p>
         </div>
     </footer>
 
     <script src="../script.js"></script>
+    <script src="../docs.js"></script>
 </body>
 </html>
-
