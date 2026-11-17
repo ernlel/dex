@@ -107,13 +107,18 @@ Focus: **Reverse-proxy awareness, HTTP caching semantics, typed request binding,
 
 ---
 
-## 🌊 Target Milestone: v0.6.0 (Streaming I/O, Uploads & Observability)
+## 🌊 Target Milestone: v0.6.0 (Streaming I/O, WebSockets & Observability)
 
-Focus: **Incremental streaming responses, multipart file uploads, template/static refinements, and production observability.**
+Focus: **Incremental streaming responses, native WebSockets, multipart file uploads, template/static refinements, and production observability.**
 
 - [ ] **Streaming Response API (`res.write()`, SSE)**
   - Support `Transfer-Encoding: chunked` incremental responses via `res.write()`, `res.flush()`, and `res.end()`.
   - Built-in Server-Sent Events (`text/event-stream`) helper for live log streaming, notifications, and AI token-by-token streaming.
+
+- [ ] **Native WebSocket Support (`app.ws` / `router.ws`)**
+  - Zero-dependency RFC 6455 HTTP `101 Switching Protocols` upgrade handshake (`Sec-WebSocket-Key` / `Sec-WebSocket-Accept` via `std.digest.sha` & `std.base64`) and subprotocol negotiation (`Sec-WebSocket-Protocol`).
+  - Full framing codec supporting text/binary frames, continuation/fragmented messages, masking/unmasking, automatic `Ping`/`Pong` keep-alive heartbeats, and graceful close status codes.
+  - Ergonomic connection lifecycle (`onOpen`, `onMessage`, `onClose`, `onError`), thread-safe `ws.send()` / `ws.close()`, configurable max payload size & idle timeouts, and compatibility with standard middleware (`cors`, auth, mounted sub-routers).
 
 - [ ] **Streaming Multipart Form-Data Parser**
   - Zero-dependency `multipart/form-data` boundary parser supporting form fields and uploaded files (`req.files`).
@@ -140,11 +145,7 @@ Focus: **High concurrency, modern protocols, and production scale.**
 - [ ] **Non-blocking / Event-Driven I/O Engine**
   - Current model: 1 OS thread per connection with `maxConnections = 1024`.
   - Goal: Pluggable or native event loop (`epoll` on Linux, `kqueue` on macOS/BSD, IOCP on Windows) or fiber scheduler.
-  - Scale to 50,000+ concurrent idle keep-alive connections with low RAM overhead.
-
-- [ ] **Native WebSocket Support (`app.ws`)**
-  - HTTP `101 Switching Protocols` handshake and framing codec.
-  - Ergonomic connection lifecycle: `onOpen`, `onMessage`, `onClose`, `onError`.
+  - Scale to 50,000+ concurrent idle keep-alive HTTP and WebSocket connections with low RAM overhead.
 
 - [ ] **Native TLS / HTTPS Support**
   - Integrated OpenSSL / system TLS support for standalone deployment without requiring an external reverse proxy (like Nginx, Caddy, or Envoy).
