@@ -66,7 +66,11 @@ void main()
 - Reflection-based JSON serialization for structs, classes, arrays,
   associative arrays, enums, and `Nullable`.
 - HTTP/1.1 keep-alive, chunked request bodies, `Expect: 100-continue`,
-  request size limits, and a capped thread-per-connection server.
+  configurable and per-route request size limits (`bodyLimit`), graceful
+  shutdown with POSIX signal hooks, and a capped thread-per-connection server.
+- Built-in middleware: `logger`, `serveStatic` (with chunked range streaming),
+  `cors`, `securityHeaders`, `compression` (gzip/deflate), `rateLimit`, and
+  `bodyLimit`.
 - Built-in Handlebars/Mustache template engine (`res.render`) with variables,
   conditionals (`#if`, `#unless`), loops (`#each`), partials (`{{> partial}}`),
   and automatic XSS escaping.
@@ -427,7 +431,9 @@ connection threads.
 | Field | Default | Meaning |
 |---|---|---|
 | `idleTimeout` | 60 seconds | Keep-alive / socket read timeout |
-| `maxBodySize` | 10 MiB | Maximum request body |
+| `shutdownTimeout` | 5 seconds | Graceful shutdown drain timeout for in-flight requests |
+| `handleSignals` | true | Handle POSIX `SIGINT`/`SIGTERM` in `listen()` / `wait()` |
+| `maxBodySize` | 10 MiB | Maximum request body (overridable per route via `bodyLimit`) |
 | `maxHeaderSize` | 64 KiB | Maximum header block |
 | `maxConnections` | 1024 | Concurrent connections (0 = unlimited) |
 | `showStackTraces` | false | Include exception text in 500 responses |

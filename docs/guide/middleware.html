@@ -231,6 +231,23 @@ options.message = <span class="tok-str">"API rate limit exceeded. Please wait be
 app.<span class="tok-fn">use</span>(<span class="tok-str">"/api"</span>, <span class="tok-fn">rateLimit</span>(options));</code></pre>
             </div>
 
+            <h3>7. Per-Route Body Size Limits (`bodyLimit()`)</h3>
+            <p>
+                Overrides <code>app.maxBodySize</code> for specific routes or sub-routers, allowing tight caps on JSON endpoints while permitting larger uploads on dedicated routes:
+            </p>
+            <div class="code-frame">
+                <div class="code-header"><span class="code-lang">d</span></div>
+                <pre class="code"><code><span class="tok-kw">import</span> dex;
+
+<span class="tok-comment">// Tight global default (64 KiB)</span>
+app.maxBodySize = 64 * 1024;
+
+<span class="tok-comment">// Allow up to 50 MiB on a specific upload route</span>
+app.<span class="tok-fn">post</span>(<span class="tok-str">"/upload"</span>, <span class="tok-fn">bodyLimit</span>(50 * 1024 * 1024), (req, res) {
+    res.<span class="tok-fn">send</span>(<span class="tok-str">"Uploaded "</span> ~ req.rawBody.length.<span class="tok-fn">to</span>!<span class="tok-type">string</span> ~ <span class="tok-str">" bytes"</span>);
+});</code></pre>
+            </div>
+
             <!-- Pager -->
             <nav class="docs-pager" aria-label="Docs pagination">
                 <a class="pager-btn pager-prev" href="routing.html">

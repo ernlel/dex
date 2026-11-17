@@ -111,6 +111,8 @@
             <h2>Properties &amp; Configuration</h2>
             <ul>
                 <li><code>idleTimeout: Duration</code> — Keep-alive socket idle timeout (default: <code>60.seconds</code>).</li>
+                <li><code>shutdownTimeout: Duration</code> — Maximum time <code>close()</code> waits for in-flight requests to drain (default: <code>5.seconds</code>).</li>
+                <li><code>handleSignals: bool</code> — Install POSIX <code>SIGINT</code>/<code>SIGTERM</code> graceful shutdown hooks during <code>listen()</code> and <code>wait()</code> (default: <code>true</code>).</li>
                 <li><code>maxBodySize: size_t</code> — Maximum accepted request body in bytes (default: 10 MiB).</li>
                 <li><code>maxHeaderSize: size_t</code> — Maximum accepted header bytes (default: 64 KiB).</li>
                 <li><code>maxConnections: size_t</code> — Max concurrent TCP connections; 0 means unlimited (default: 1024).</li>
@@ -136,9 +138,9 @@
                 Starts accepting connections on a background accept thread without blocking the calling thread. Read the bound port from <code>app.port</code>.
             </p>
 
-            <h3>app.close()</h3>
+            <h3>app.close([timeout])</h3>
             <p>
-                Stops accepting incoming connections and safely closes all active connections.
+                Stops accepting incoming connections, closes idle keep-alive sockets immediately, signals in-flight responses with <code>Connection: close</code>, and waits up to <code>timeout</code> (defaults to <code>shutdownTimeout</code>) for active requests to complete before forcing remaining connections closed.
             </p>
 
             <h3>app.use([prefix], handler | middleware | router)</h3>

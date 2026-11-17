@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-17
+
+### Added
+- **Built-in View Engine & Template System (`res.render`)**: Integrated Handlebars/Mustache-style templating with zero external dependencies (`dex.view`). Features variable interpolation (`{{var}}`), raw output (`{{{raw}}}` / `{{&raw}}`), conditionals (`{{#if}}`, `{{#unless}}`, `{{^inverted}}`), loops (`{{#each}}`) with `@index`, `@first`, `@last`, `@key`, partials (`{{> header}}`), automatic XSS escaping, `app.setViews()`, `app.viewEngine()`, `app.engine()`, and thread-safe template caching (`app.cacheViews`). Added `examples/views` and template engine guide.
+- **Response Compression Middleware (`compression()`)**: Added Gzip and Deflate streaming compression via `std.zlib` with configurable byte threshold (`1024` default), compression level, custom MIME filter, automatic `Vary: Accept-Encoding`, and uncompressed fallback when compression does not reduce size.
+- **Rate Limiting Middleware (`rateLimit()`)**: Added thread-safe in-memory rate limiting middleware with configurable `window`, `max`, `keyGenerator`, `skip`, custom `handler`, `429 Too Many Requests` + `Retry-After` responses, RFC `RateLimit-*` headers, and optional legacy `X-RateLimit-*` headers.
+- **Per-Route Body Size Limits (`bodyLimit()`)**: Added deferred request body loading in `HttpServer` and `Request`, plus `bodyLimit(size_t maxBytes)` middleware so individual routes or sub-routers can either tighten or raise `app.maxBodySize` (including chunked bodies and `Expect: 100-continue`).
+- **Graceful Server Shutdown**: Added configurable `app.shutdownTimeout` (5s default) and `app.close(timeout)` drain behavior that stops accepting new connections, immediately closes idle keep-alive sockets, sends `Connection: close` on in-flight responses, and waits for active requests to finish. Added automatic POSIX `SIGINT`/`SIGTERM` signal hooks in `app.listen()` / `app.wait()` (configurable via `app.handleSignals`).
+- **Standalone Build & Release Packaging**: Added root `Makefile` (`make`, `make test`, `make install`, `make dist`, `make dist-bin`), manual non-DUB installation docs, and automated GitHub Release packaging workflow.
+- **Examples & Brand Identity**: Replaced `examples/auth-cors` with `examples/api-server` and `examples/file-server`, and added logo/favicon/OG brand assets.
+
+## [0.3.0] - 2026-11-06
+
+### Added
+- **Express-style documentation site**: Added multi-page starter guides (`installing.html`, `hello-world.html`, `basic-routing.html`, `static-files.html`, `faq.html`), deep guides (`routing.html`, `middleware.html`, `error-handling.html`), and API reference (`app.html`, `request.html`, `response.html`, `router.html`).
+- **Standard `cors()` & `securityHeaders()` middleware**: Promoted CORS and Helmet-style security headers middleware into `dex.middleware` and exported them from top-level `dex`.
+- **CI, Docs & License badges**: Added workflow and release badges to `README.md` and updated author/copyright metadata.
+
 ## [0.2.0] - 2026-11-06
 
 ### Fixed
