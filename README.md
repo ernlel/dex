@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://ernlel.github.io/dex/">
-    <img src="docs/assets/dex-icon.png" width="120" height="120" alt="dex logo">
+    <img src="docs/src/assets/dex-icon.png" width="120" height="120" alt="dex logo">
   </a>
 </p>
 
@@ -571,12 +571,13 @@ curl -i http://localhost:3000/projects
 
 ## Documentation site
 
-The documentation is authored as Markdown in `docs-src/`. The build script
-renders it into the static pages in `docs/` and generates
-`docs/search-index.json` for client-side search.
+All website and documentation sources live under `docs/src/`. The build
+script (`docs/build.py`) copies the static landing page/assets and renders the
+Markdown docs into the git-ignored `docs/dist/` directory alongside
+`docs/dist/search-index.json` for client-side search.
 
 ```sh
-python3 -m pip install -r requirements-docs.txt
+python3 -m pip install -r docs/requirements.txt
 make docs
 ```
 
@@ -587,13 +588,9 @@ make docs-serve
 # open http://localhost:8080
 ```
 
-The generated HTML is committed, so the site can also be served directly from
-`docs/`. The GitHub Pages workflow rebuilds the Markdown sources before
-uploading the artifact.
-
 ### Adding a page
 
-1. Add `docs-src/<section>/<slug>.md` with front matter:
+1. Add `docs/src/<section>/<slug>.md` with front matter:
 
    ```md
    ---
@@ -602,7 +599,7 @@ uploading the artifact.
    ---
    ```
 
-2. Add the slug to `docs-src/nav.json` in the desired section and order.
+2. Add the slug to `docs/src/nav.json` in the desired section and order.
 3. Run `make docs`.
 
 Fenced code blocks are rendered with Pygments. Add a title for the code-frame
@@ -620,18 +617,14 @@ has a search field; press `/` to focus it. Use <kbd>↑</kbd>/<kbd>↓</kbd> and
 
 ### Publish
 
-1. Push the repository to GitHub.
-2. Open **Settings → Pages**.
-3. Choose **Deploy from a branch**.
-4. Select the `main` branch and the `/docs` folder.
-
-The included Pages workflow runs the Markdown build automatically. It deploys
-the contents of `docs/` after rendering `docs-src/`.
+On every release tag (`v*.*.*`), the [release workflow](.github/workflows/release.yml)
+builds `docs/dist/` and deploys it to GitHub Pages automatically. You can also
+trigger a manual deploy via the [Pages workflow](.github/workflows/pages.yml).
 
 On a GitHub Pages project site, repository links are detected automatically.
 If the site uses a custom domain, set `CONFIGURED_REPO_URL` in
-`docs/script.js` to the repository URL. Example-directory links assume the
-`main` branch; adjust them in `docs/script.js` if your default branch differs.
+`docs/src/script.js` to the repository URL. Example-directory links assume the
+`main` branch; adjust them in `docs/src/script.js` if your default branch differs.
 
 ## Development
 

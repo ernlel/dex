@@ -8,6 +8,7 @@ dub.selections.json
 *.pdb
 /dex-test-library
 /dex-test-runner
+/docs/dist/
 /examples/hello/hello
 /examples/todos/todos
 /examples/api-server/api-server

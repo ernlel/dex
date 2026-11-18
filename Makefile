@@ -73,12 +73,12 @@ dist-bin: $(LIB)
 	@echo "Created $(DIST_DIR)/$(DIST_BIN_NAME).tar.gz"
 
 docs:
-	python3 scripts/build_docs.py
+	python3 docs/build.py
 
 docs-serve: docs
-	python3 -m http.server 8080 --directory docs
+	python3 -m http.server 8080 --directory docs/dist
 
 clean:
 	rm -f $(LIB) $(TEST_BIN) *.o
-	rm -rf $(DIST_DIR)
+	rm -rf $(DIST_DIR) docs/dist
 

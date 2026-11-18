@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build the GitHub Pages documentation from Markdown sources.
+"""Build the GitHub Pages documentation from source files under docs/src.
 
-Source: docs-src/**/*.md
-Output: docs/**/*.html + docs/search-index.json
+Source: docs/src/ (Markdown, templates, landing page, CSS/JS, assets)
+Output: docs/dist/ (compiled HTML, static assets, and search-index.json)
 
 The build is intentionally dependency-light: Markdown, Pygments, and lxml.
 """
@@ -13,6 +13,7 @@ import html
 import json
 import posixpath
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -25,8 +26,18 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS_SRC = ROOT / "docs-src"
-DOCS_OUT = ROOT / "docs"
+DOCS_SRC = ROOT / "docs" / "src"
+DOCS_OUT = ROOT / "docs" / "dist"
+
+STATIC_FILES = (
+    ".nojekyll",
+    "index.html",
+    "styles.css",
+    "script.js",
+    "docs.css",
+    "docs.js",
+)
+STATIC_DIRS = ("assets",)
 
 LANG_LABELS = {
     "d": "D",
@@ -228,7 +239,25 @@ def build_search_records(slug: str, section: str, page_title: str,
     return records
 
 
+def copy_static_assets() -> None:
+    if DOCS_OUT.exists():
+        shutil.rmtree(DOCS_OUT)
+    DOCS_OUT.mkdir(parents=True, exist_ok=True)
+
+    for rel_file in STATIC_FILES:
+        src = DOCS_SRC / rel_file
+        if src.exists():
+            shutil.copy2(src, DOCS_OUT / rel_file)
+
+    for rel_dir in STATIC_DIRS:
+        src_dir = DOCS_SRC / rel_dir
+        if src_dir.exists():
+            shutil.copytree(src_dir, DOCS_OUT / rel_dir)
+
+
 def main() -> int:
+    copy_static_assets()
+
     nav = json.loads((DOCS_SRC / "nav.json").read_text(encoding="utf-8"))
     template = (DOCS_SRC / "template.html").read_text(encoding="utf-8")
     pages = [page for section in nav["sections"] for page in section["pages"]]
